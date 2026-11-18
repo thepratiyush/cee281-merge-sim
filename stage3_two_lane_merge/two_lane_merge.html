@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Two-Lane Merge</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+:root{--bg:#f3f3ef;--panel:#fff;--ink:#1c1f1d;--muted:#5d645f;--line:#d6d8d2;--road:#3a3d3f;--mark:#e8b92a;--sign:#0f6b45;--signink:#fff;--traj:rgba(20,22,21,.42);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141615;--panel:#1e2120;--ink:#ecefeb;--muted:#9aa29c;--line:#343836;--road:#2a2c2e;--sign:#1a8a5a;--traj:rgba(240,242,240,.42)}}
+:root[data-theme="dark"]{--bg:#141615;--panel:#1e2120;--ink:#ecefeb;--muted:#9aa29c;--line:#343836;--road:#2a2c2e;--sign:#1a8a5a;--traj:rgba(240,242,240,.42)}
+*{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Barlow,system-ui,Arial,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font:700 34px/1.1 "Barlow Condensed",Impact,sans-serif;margin:0 0 6px}
+.sub{color:var(--muted);max-width:75ch;margin:0 0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+.bar label{display:flex;flex-direction:column;font-size:14px;color:var(--muted);gap:2px;min-width:140px}
+.bar label.chk{flex-direction:row;align-items:center;gap:6px;min-width:0}
+.bar label b{color:var(--ink);font-weight:600}
+button,select{font:600 15px Barlow,sans-serif;padding:7px 14px;border-radius:4px;border:1px solid var(--line);background:var(--sign);color:var(--signink);cursor:pointer}
+select{background:var(--panel);color:var(--ink)}
+button.alt{background:var(--panel);color:var(--ink)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--mark);outline-offset:2px}
+.wrap{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px}
+canvas{display:block;width:100%}
+.legend{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.grad{flex:0 0 160px;height:10px;border-radius:5px;background:linear-gradient(90deg,hsl(5,80%,50%),hsl(55,85%,50%),hsl(200,75%,48%))}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.stat span{display:block;font-size:13px;color:var(--muted)}
+.stat strong{font:700 24px/1.1 "Barlow Condensed",Impact,sans-serif}
+h2{font:700 22px "Barlow Condensed",Impact,sans-serif;margin:22px 0 6px}
+p.note{color:var(--muted);font-size:14px;margin:0 0 8px;max-width:78ch}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+.layout{display:block;width:100%;min-width:760px;height:auto;color:var(--muted)}
+.layout .dm{stroke:var(--muted);stroke-width:1}
+.layout text{font-family:Barlow,system-ui,sans-serif}
+.layout .dt{fill:var(--muted);font-size:13px}
+.layout .lb{fill:var(--ink);font-size:13px;font-weight:600}
+.layout .ln{fill:#c9cdca;font-size:10px}
+.layout .dk{fill:#1c1f1d;font-size:12px;font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Two-Lane Merge (Stage 3)</h1>
+<p class="sub">A two-lane main road from x = 0 to 4,000 m (folded into four 1,000 m rows) with a 500 m one-lane on-ramp that joins the right lane at x = 2,500 m. Cars leave at point C, x = 4,000 m. The ramp meter sits at the ramp entry, and released cars start from a stop. Each car's desired speed is drawn from a Gaussian curve. Cars follow the Intelligent Driver Model (IDM) and change lanes when it pays off and is safe (a MOBIL-style rule). Ramp cars use a zipper merge from the acceleration lane. The ramp holds at most n<sub>max</sub> cars, and arrivals beyond that are turned away (spillback). Detectors A–D record 30-second counts per lane.</p>
+
+<h2>Layout (default geometry)</h2>
+<p class="note">The whole 4,000 m section drawn to scale. Yellow circles are detectors: A on the main road at 1,500 m, B at the ramp entry, C on the ramp queue at the meter, and D on the main road at 3,300 m. The sliders below can move the merge and ramp; this diagram shows the defaults.</p>
+<div class="wrap" style="overflow-x:auto"><svg class="layout" viewBox="0 0 1000 336" role="img" aria-label="Layout of the 4,000 m two-lane road with a 500 m on-ramp merging at 2,500 m, detectors A at 1,500 m, B and C at the ramp entry, D at 3,300 m"><defs><marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M10 1 L2 5 L10 9" fill="none" stroke="currentColor" stroke-width="1.6"/></marker><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#c9cdca"/></marker></defs><line x1="40.0" y1="28" x2="960.0" y2="28" class="dm" marker-start="url(#ar)" marker-end="url(#ar)"/><line x1="40.0" y1="22" x2="40.0" y2="34" class="dm"/><line x1="960.0" y1="22" x2="960.0" y2="34" class="dm"/><text x="500.0" y="22" class="dt" text-anchor="middle">Main road, 4,000 m (2 lanes)</text><path d="M500.0 172 L615.0 107" stroke="var(--sign)" stroke-width="16" fill="none" stroke-linecap="butt"/><path d="M500.0 172 L615.0 107" stroke="var(--road)" stroke-width="12" fill="none"/><path d="M615.0 100 L643.1 100 L657.1 100 L643.1 112 L609.0 112 Z" fill="var(--road)" stroke="var(--sign)" stroke-width="1.5"/><rect x="40.0" y="70" width="920.0" height="30" fill="var(--road)"/><line x1="40.0" y1="85" x2="960.0" y2="85" stroke="#fff" stroke-opacity=".6" stroke-dasharray="8 8"/><line x1="109.0" y1="77.5" x2="139.0" y2="77.5" stroke="#c9cdca" stroke-width="1.5" marker-end="url(#fl)"/><line x1="109.0" y1="92.5" x2="139.0" y2="92.5" stroke="#c9cdca" stroke-width="1.5" marker-end="url(#fl)"/><line x1="270.0" y1="77.5" x2="300.0" y2="77.5" stroke="#c9cdca" stroke-width="1.5" marker-end="url(#fl)"/><line x1="270.0" y1="92.5" x2="300.0" y2="92.5" stroke="#c9cdca" stroke-width="1.5" marker-end="url(#fl)"/><line x1="868.0" y1="77.5" x2="898.0" y2="77.5" stroke="#c9cdca" stroke-width="1.5" marker-end="url(#fl)"/><line x1="868.0" y1="92.5" x2="898.0" y2="92.5" stroke="#c9cdca" stroke-width="1.5" marker-end="url(#fl)"/><text x="44.0" y="81" class="ln">Left lane</text><text x="44.0" y="96" class="ln">Right lane</text><line x1="615.0" y1="66" x2="615.0" y2="116" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="615.0" y="60" class="lb" text-anchor="middle">Merge (bottleneck)</text><rect x="383.0" y="66" width="4" height="38" fill="var(--mark)"/><circle cx="385.0" cy="54" r="10" fill="var(--mark)"/><text x="385.0" y="58.5" class="dk" text-anchor="middle">A</text><rect x="797.0" y="66" width="4" height="38" fill="var(--mark)"/><circle cx="799.0" cy="54" r="10" fill="var(--mark)"/><text x="799.0" y="58.5" class="dk" text-anchor="middle">D</text><rect x="478.0" y="166" width="12" height="12" rx="2" fill="hsl(60,70%,50%)" opacity=".85"/><rect x="463.0" y="166" width="12" height="12" rx="2" fill="hsl(80,70%,50%)" opacity=".85"/><rect x="448.0" y="166" width="12" height="12" rx="2" fill="hsl(100,70%,50%)" opacity=".85"/><rect x="433.0" y="166" width="12" height="12" rx="2" fill="hsl(120,70%,50%)" opacity=".85"/><rect x="418.0" y="166" width="12" height="12" rx="2" fill="hsl(140,70%,50%)" opacity=".85"/><rect x="403.0" y="166" width="12" height="12" rx="2" fill="hsl(160,70%,50%)" opacity=".85"/><rect x="388.0" y="166" width="12" height="12" rx="2" fill="hsl(180,70%,50%)" opacity=".85"/><rect x="384.0" y="162" width="110.0" height="20" fill="none" stroke="var(--muted)" stroke-dasharray="3 3" rx="3"/><circle cx="497.0" cy="172" r="5" fill="#e5252a"/><circle cx="497.0" cy="172" r="2" fill="#2fbf71"/><circle cx="497.0" cy="148" r="10" fill="var(--mark)"/><text x="497.0" y="152.5" class="dk" text-anchor="middle">B</text><circle cx="440.0" cy="205" r="10" fill="var(--mark)"/><text x="440.0" y="209.5" class="dk" text-anchor="middle">C</text><text x="481.0" y="152" class="lb" text-anchor="end">Ramp entry + meter</text><text x="454.0" y="209" class="lb">Ramp queue, n_max = 20</text><line x1="500.0" y1="232" x2="615.0" y2="232" class="dm" marker-start="url(#ar)" marker-end="url(#ar)"/><line x1="500.0" y1="226" x2="500.0" y2="238" class="dm"/><line x1="615.0" y1="226" x2="615.0" y2="238" class="dm"/><text x="557.5" y="226" class="dt" text-anchor="middle">Ramp 500 m</text><text x="661.1" y="125" class="dt">Accel. lane 122 m (400 ft)</text><text x="40.0" y="122" class="lb">Origin A (main road)</text><text x="360.0" y="190" class="lb" text-anchor="end">Origin B (ramp) →</text><text x="960.0" y="122" class="lb" text-anchor="end">Destination C (exit)</text><line x1="40.0" y1="268" x2="385.0" y2="268" class="dm" marker-start="url(#ar)" marker-end="url(#ar)"/><line x1="40.0" y1="262" x2="40.0" y2="274" class="dm"/><line x1="385.0" y1="262" x2="385.0" y2="274" class="dm"/><text x="212.5" y="262" class="dt" text-anchor="middle">1,500 m</text><line x1="385.0" y1="268" x2="615.0" y2="268" class="dm" marker-start="url(#ar)" marker-end="url(#ar)"/><line x1="385.0" y1="262" x2="385.0" y2="274" class="dm"/><line x1="615.0" y1="262" x2="615.0" y2="274" class="dm"/><text x="500.0" y="262" class="dt" text-anchor="middle">1,000 m</text><line x1="615.0" y1="268" x2="799.0" y2="268" class="dm" marker-start="url(#ar)" marker-end="url(#ar)"/><line x1="615.0" y1="262" x2="615.0" y2="274" class="dm"/><line x1="799.0" y1="262" x2="799.0" y2="274" class="dm"/><text x="707.0" y="262" class="dt" text-anchor="middle">800 m</text><line x1="799.0" y1="268" x2="960.0" y2="268" class="dm" marker-start="url(#ar)" marker-end="url(#ar)"/><line x1="799.0" y1="262" x2="799.0" y2="274" class="dm"/><line x1="960.0" y1="262" x2="960.0" y2="274" class="dm"/><text x="879.5" y="262" class="dt" text-anchor="middle">700 m</text><line x1="40.0" y1="296" x2="960.0" y2="296" class="dm"/><line x1="40.0" y1="292" x2="40.0" y2="300" class="dm"/><text x="40.0" y="314" class="dt" text-anchor="middle">0</text><line x1="155.0" y1="292" x2="155.0" y2="300" class="dm"/><text x="155.0" y="314" class="dt" text-anchor="middle">500</text><line x1="270.0" y1="292" x2="270.0" y2="300" class="dm"/><text x="270.0" y="314" class="dt" text-anchor="middle">1,000</text><line x1="385.0" y1="292" x2="385.0" y2="300" class="dm"/><text x="385.0" y="314" class="dt" text-anchor="middle">1,500</text><line x1="500.0" y1="292" x2="500.0" y2="300" class="dm"/><text x="500.0" y="314" class="dt" text-anchor="middle">2,000</text><line x1="615.0" y1="292" x2="615.0" y2="300" class="dm"/><text x="615.0" y="314" class="dt" text-anchor="middle">2,500</text><line x1="730.0" y1="292" x2="730.0" y2="300" class="dm"/><text x="730.0" y="314" class="dt" text-anchor="middle">3,000</text><line x1="845.0" y1="292" x2="845.0" y2="300" class="dm"/><text x="845.0" y="314" class="dt" text-anchor="middle">3,500</text><line x1="960.0" y1="292" x2="960.0" y2="300" class="dm"/><text x="960.0" y="314" class="dt" text-anchor="middle">4,000</text><text x="960.0" y="330" class="dt" text-anchor="end">x (m)</text></svg></div>
+
+<h2>Simulation</h2>
+<div class="bar">
+  <button id="play">Pause</button>
+  <button id="reset" class="alt">Reset</button>
+  <button id="crashnow" class="alt">Trigger crash</button>
+  <label>Playback speed (1× = 15 sec/sec)
+    <select id="speedup"><option value="0.2">0.2× (slow)</option><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option><option value="60">60×</option></select>
+  </label>
+  <label>Main road demand: <b id="flowv">2000</b> cars/hr (both lanes)<input id="flow" type="range" min="200" max="4400" step="50" value="2000"></label>
+  <label>Mean speed: <b id="meanv">30</b> mph<input id="mean" type="range" min="15" max="55" step="1" value="30"></label>
+  <label>Std. deviation: <b id="sdv">5</b> mph<input id="sd" type="range" min="1" max="12" step="0.5" value="5"></label>
+  <label>Following gap: <b id="hwv">1.0</b> sec<input id="headway" type="range" min="0.5" max="3" step="0.1" value="1"></label>
+  <label>Crash rate: <b id="crv">1.0</b> ACC/MVM<input id="crash" type="range" min="0" max="100" step="0.5" value="1"></label>
+  <label>Time to clear crash: <b id="clv">1.0</b> hours<input id="clear" type="range" min="0.1" max="4" step="0.1" value="1"></label>
+  <label>People per car: <b id="ppv">1.5</b><input id="ppc" type="range" min="1" max="5" step="0.1" value="1.5"></label>
+  <label>On-ramp flow: <b id="rfv">200</b> cars/hr<input id="ramp" type="range" min="0" max="1500" step="50" value="200"></label>
+  <label>Merge location: x = <b id="rmv">2,500</b> m<input id="rampm" type="range" min="1000" max="3800" step="50" value="2500"></label>
+  <label>Ramp length: <b id="rLv">500</b> m<input id="rampL" type="range" min="100" max="1000" step="50" value="500"></label>
+  <label>Acceleration lane length: <b id="rlv">400</b> ft<input id="rlen" type="range" min="100" max="1000" step="50" value="400"></label>
+  <label>Max braking: <b id="mbv">20</b> ft/s² (32 ≈ 1 g)<input id="brake" type="range" min="5" max="32" step="1" value="20"></label>
+  <label>Ramp meter wait: <b id="mtv">2.0</b> sec/car<input id="meter" type="range" min="0" max="20" step="0.5" value="2"></label>
+  <label>Ramp storage limit (n_max): <b id="nmv">20</b> cars<input id="nmax" type="range" min="5" max="60" step="1" value="20"></label>
+  <label>Lane-change safe braking: <b id="bsv">13</b> ft/s²<input id="bsafe" type="range" min="3" max="32" step="1" value="13"></label>
+  <label class="chk"><input id="lc" type="checkbox" checked> Allow lane changes</label>
+</div>
+
+<div class="wrap">
+  <canvas id="road" aria-label="Road simulation: a two-lane, one-mile road folded into four rows, with an on-ramp"></canvas>
+  <div class="legend"><span>Slow</span><div class="grad"></div><span>Fast (car colour = current speed)</span><span>· Yellow ticks = detectors A (1,500 m) and D (3,300 m)</span></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><span>Clock (h:mm:ss)</span><strong id="sClock">0:00:00</strong></div>
+  <div class="stat"><span>Cars on road</span><strong id="sOn">0</strong></div>
+  <div class="stat"><span>Waiting to enter</span><strong id="sQ">0</strong></div>
+  <div class="stat"><span>Entered / exited</span><strong id="sIO">0 / 0</strong></div>
+  <div class="stat"><span>People moved</span><strong id="sPP">0</strong></div>
+  <div class="stat"><span>Avg speed now (R / L)</span><strong id="sV">–</strong></div>
+  <div class="stat"><span>Density</span><strong id="sD">0</strong></div>
+  <div class="stat"><span>Exit flow (last 5 min)</span><strong id="sF">–</strong></div>
+  <div class="stat"><span id="sAL">Projected AADT (input × 24)</span><strong id="sA">–</strong></div>
+  <div class="stat"><span>VMT this run</span><strong id="sVM">0</strong></div>
+  <div class="stat"><span>Projected daily VMT</span><strong id="sVD">–</strong></div>
+  <div class="stat"><span>Crashes this run</span><strong id="sCr">0</strong></div>
+  <div class="stat"><span>Crash status</span><strong id="sCS">Clear</strong></div>
+  <div class="stat"><span>Expected crashes / year</span><strong id="sCY">–</strong></div>
+  <div class="stat"><span>Lane changes</span><strong id="sLC">0</strong></div>
+  <div class="stat"><span>On-ramp queue (of n<sub>max</sub>)</span><strong id="sRQ">0</strong></div>
+  <div class="stat"><span>Ramp cars turned away</span><strong id="sRB">0</strong></div>
+  <div class="stat"><span>In acceleration lane</span><strong id="sLN">0</strong></div>
+  <div class="stat"><span>Merged from ramp</span><strong id="sRM">0</strong></div>
+  <div class="stat"><span>Avg ramp wait</span><strong id="sRW">–</strong></div>
+  <div class="stat"><span>Avg trip time</span><strong id="sT">–</strong></div>
+</div>
+
+<h2>Detectors (30 s, per lane)</h2>
+<p class="note" id="detNote">A sits on the main road upstream of the merge, B at the ramp entry, C at the ramp meter stop line, and D downstream of the acceleration lane. Speed is the space-mean speed (harmonic mean of spot speeds). Density is q / u<sub>s</sub>, or comes from occupancy when fewer than two cars pass.</p>
+<div class="row"><button id="csv" class="alt">Download detector CSV</button><span class="note" id="detTime" style="margin:0">Waiting for first 30 s interval…</span></div>
+<div class="tbl"><table id="detT"></table></div>
+
+<h2>Breakdown and wave speed</h2>
+<p class="note">A breakdown starts when the right-lane space-mean speed at detector A stays below 60% of the mean desired speed for three intervals (1.5 min), and ends after two intervals back above it. The first 10 minutes are skipped while the road fills. The breakdown flow is the total flow at D over the 5 min before onset. The queue discharge flow is the flow at D during the breakdown. Wave speed is measured three ways: cross-correlating congested speeds 800 ft apart in the x-t speed field (last 10 min, upstream-moving waves only), from the shockwave equation ω = (q<sub>free</sub> − q<sub>cong</sub>) / (k<sub>free</sub> − k<sub>cong</sub>) using detector A's states before and after onset, and from Newell's theory, −(l + s<sub>0</sub>) / T.</p>
+<div class="stats">
+  <div class="stat"><span>Breakdown status</span><strong id="bS">Free flow</strong></div>
+  <div class="stat"><span>Breakdown flow (at D, both lanes)</span><strong id="bF">–</strong></div>
+  <div class="stat"><span>Queue discharge flow</span><strong id="bQ">–</strong></div>
+  <div class="stat"><span>Capacity drop</span><strong id="bDr">–</strong></div>
+  <div class="stat"><span>Wave speed, x-t (R / L)</span><strong id="wX">–</strong></div>
+  <div class="stat"><span>Shockwave ω at A</span><strong id="wS">–</strong></div>
+  <div class="stat"><span>Newell theory</span><strong id="wN">–</strong></div>
+</div>
+<div class="tbl"><table id="bdT"></table></div>
+
+<h2>Time-space (x-t) diagram</h2>
+<p class="note">The last 15 minutes. Background colour is the mean speed in 100 ft × 2 s cells, and the thin lines are individual car trajectories. Stop-and-go waves show up as red bands sloping down to the right, meaning they move upstream.</p>
+<div class="row"><select id="xtl"><option value="0">Right lane (merge lane)</option><option value="1">Left lane</option></select></div>
+<div class="wrap"><canvas id="xt" aria-label="Time-space diagram"></canvas></div>
+
+<h2>Flow-density (q-k) diagram</h2>
+<p class="note">Each dot is one 30 s interval at detector A or D, per lane. The yellow curve is the IDM equilibrium q-k relationship using the current mean desired speed, time gap, s<sub>0</sub> and car length. Its peak is the model's theoretical lane capacity.</p>
+<div class="wrap"><canvas id="qk" aria-label="Flow-density scatter with IDM equilibrium curve"></canvas>
+  <div class="legend"><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e07b39"></i> A, right lane</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid #e07b39"></i> A, left lane</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b8eea"></i> D, right lane</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid #3b8eea"></i> D, left lane</span><span><i style="display:inline-block;width:12px;height:3px;background:var(--mark);vertical-align:3px"></i> IDM equilibrium</span></div></div>
+
+<h2>Desired vs. actual speeds</h2>
+<p class="note">Bars are the desired speeds assigned to cars so far, and the yellow line is the Gaussian they're drawn from. The blue line is the speeds cars have actually driven, sampled once per simulated second.</p>
+<div class="wrap"><canvas id="hist" aria-label="Histogram of desired speeds with actual speeds overlaid"></canvas>
+  <div class="legend" style="gap:6px 16px"><span><i style="display:inline-block;width:12px;height:12px;background:var(--sign);opacity:.75;vertical-align:-1px"></i> Desired (generated)</span><span><i style="display:inline-block;width:12px;height:3px;background:var(--mark);vertical-align:3px"></i> Gaussian</span><span><i style="display:inline-block;width:12px;height:3px;background:#3b8eea;vertical-align:3px"></i> Actual</span></div></div>
+</main>
+
+<script>
+(function(){
+const M2F=3.28084,FT=4000*M2F,MPH=1.4667,CL=15,ROWS=4,ROWFT=FT/ROWS,DT=0.1,DINT=30; // road: x = 0-4,000 m (code works in ft internally)
+const XA=1500*M2F,XD=3300*M2F; // detectors A and D at x = 1,500 m and 3,300 m
+const IA=5,IB=9,S0=8;            // IDM: max accel, comfortable decel (ft/s²), standstill gap (ft)
+const POL=0.2,ATHR=0.33;          // lane change: politeness, threshold (ft/s²)
+const XB=100,NX=Math.ceil(FT/XB)+1,TB=2,NT=450; // x-t speed field: 100 ft × 2 s cells, 15 min kept
+const $=id=>document.getElementById(id);
+const P={flow:2000,mean:30,sd:5,headway:1,crash:1,clear:1,ppc:1.5,ramp:200,rampm:2500,rampL:500,rlen:400,brake:20,meter:2,nmax:20,bsafe:13,lc:true,speedup:1,running:true,xtl:0};
+let lanes,alane,rampQ,queue,t,stepN,nextArr,nid,entered,exited,exits,tripSum,tripN,tripD,exitFt,extraFt,people,gen,act,actN,crash,nCrash,merged,waitSum,rampDemand,rampBlocked,lcCount,
+    det,detLog,detLast,dHist,aHist,bd,bdEvents,wave,sfSum,sfCnt,lastCol,trajStore;
+
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const median=a=>{const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+function gauss(){let u=0,v=0;while(!u)u=Math.random();v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function expo(rate){return -Math.log(1-Math.random())/rate}
+function geom(){const M=P.rampm*M2F,E=Math.min(M+P.rlen,FT-20),R0=Math.max(10,M-P.rampL*M2F);return{M,E,R0,xA:XA,xD:XD}} // R0 = ramp entry / meter stop line
+const da=()=>({n:0,sv:0,si:0,occ:0});
+function newDet(){det={A:[da(),da()],D:[da(),da()],B:{n:0,blk:0},C:{n:0,q:0,qmax:0,w:0}}}
+function reset(){
+  lanes=[[],[]];alane=[];rampQ=[];queue=0;t=0;stepN=0;nextArr=expo(P.flow/3600);nid=0;entered=0;exited=0;exits=[];tripSum=0;tripN=0;tripD=0;exitFt=0;extraFt=0;people=0;
+  gen=[];act=new Array(28).fill(0);actN=0;crash=null;nCrash=0;merged=0;waitSum=0;rampDemand=0;rampBlocked=0;lcCount=0;
+  detLog=[];detLast=[];dHist=[];aHist=[];bd={ev:null,below:0,above:0,free:0};bdEvents=[];wave=[null,null];
+  sfSum=[new Float32Array(NT*NX),new Float32Array(NT*NX)];sfCnt=[new Uint16Array(NT*NX),new Uint16Array(NT*NX)];lastCol=-1;trajStore=[];
+  newDet();uiDirty=true;
+}
+
+// IDM acceleration (also used for merge and lane-change safety checks)
+function idm(v,v0,s,dv){return IA*(1-Math.pow(v/Math.max(v0,1),4)-Math.pow((S0+Math.max(0,v*P.headway+v*dv/(2*Math.sqrt(IA*IB))))/Math.max(0.5,s),2))}
+
+// On-ramp: Poisson arrivals into storage (max n_max) -> meter -> acceleration lane -> zipper merge into the right lane
+function ramp(){
+  const {M,E,R0}=geom(),R=lanes[0];
+  if(Math.random()<P.ramp/3600*DT){rampDemand++;
+    if(rampQ.length<P.nmax){rampQ.push({t:t,v0:Math.max(8,P.mean+P.sd*gauss())*MPH});det.B.n++}else{rampBlocked++;det.B.blk++}}
+  det.C.q+=rampQ.length*DT;det.C.qmax=Math.max(det.C.qmax,rampQ.length);
+  if(rampQ.length){
+    const head=rampQ[0],last=alane[alane.length-1];
+    if(head.hs===undefined)head.hs=t;
+    if(t-head.hs>=P.meter&&(!last||last.x-CL-R0>=S0)){ // meter releases one car from a stop at the ramp entry
+      alane.push({id:nid++,x:R0,v:0,v0:head.v0,t0:t,ta:head.t,xs:R0,occ:P.ppc});rampQ.shift();det.C.n++;det.C.w+=t-head.t;
+    }
+  }
+  const acc=alane.map((c,i)=>{
+    let s=Math.max(0.5,E-c.x),dv=c.v;const l=alane[i-1];
+    if(l){const s2=l.x-CL-c.x;if(s2<s){s=Math.max(0.5,s2);dv=c.v-l.v}}
+    return Math.max(-P.brake,idm(c.v,c.v0,s,dv));
+  });
+  alane.forEach((c,i)=>{c.v=Math.max(0,c.v+acc[i]*DT);c.x+=c.v*DT;if(c.x>E){c.x=E;c.v=0}});
+  // Zipper merge: only the front ramp car merges; never onto an occupied spot; holds to the lane end when traffic is slow;
+  // each right-lane car lets in at most one ramp car.
+  if(alane.length){
+    const c=alane[0],n=R.length;let li=-1;
+    if(c.x<M)return; // still on the ramp, not yet beside the main road
+    for(let j=0;j<n;j++){if(R[j].x-CL>=c.x)li=j;else break}
+    const lead=li>=0?R[li]:null,fol=li+1<n?R[li+1]:null;
+    if(fol&&fol.x>c.x-CL)return;
+    const forced=E-c.x<=150,bs=forced?P.brake:Math.min(P.brake,10+Math.min(10,0.25*(t-c.ta)));
+    const lg=lead?lead.x-CL-c.x:1e9,fg=fol?c.x-CL-fol.x:1e9;
+    const slow=(lead&&lead.v<25*MPH)||(fol&&fol.v<25*MPH);
+    if(slow&&!forced)return;
+    if(lg<(forced?3:8)||fg<(forced?3:8))return;
+    if(lead&&idm(c.v,c.v0,lg,c.v-lead.v)<-bs)return;
+    if(fol&&!fol.crashed&&idm(fol.v,fol.v0,fg,fol.v-c.v)<-(fol.gaveWay?1:bs))return;
+    if(fol)fol.gaveWay=true;
+    Object.assign(c,{gaveWay:true,lane:0,lat:-1,lcT:t,a:0,tr:[[t,c.x]]});
+    R.splice(li+1,0,c);alane.shift();merged++;waitSum+=t-c.ta;
+  }
+}
+
+function startCrash(){
+  const all=lanes[0].concat(lanes[1]);
+  if(crash||!all.length)return;
+  const c=all[Math.floor(Math.random()*all.length)];
+  c.crashed=true;c.v=0;crash={car:c,clearAt:t+P.clear*3600};nCrash++;
+}
+
+function mainAcc(){
+  const {E}=geom(),fl=alane[0];
+  for(let L=0;L<2;L++){const arr=lanes[L];
+    for(let i=0;i<arr.length;i++){const c=arr[i];
+      if(c.crashed){c.a=0;continue}
+      const l=arr[i-1];let s=1e9,dv=0;
+      if(l){s=l.x-CL-c.x;dv=c.v-l.v}
+      if(L===0&&fl&&!c.gaveWay&&fl.x>E-250&&fl.x>c.x){const sf=fl.x-CL-c.x;if(sf<s){s=sf;dv=c.v-fl.v}}
+      c.a=Math.max(-P.brake,idm(c.v,c.v0,Math.max(0.5,s),dv));
+    }
+  }
+}
+
+// MOBIL-style lane changes: go if own gain + politeness × followers' change > threshold, and the new follower brakes no harder than b_safe
+function laneChanges(){
+  if(!P.lc)return;
+  const {E}=geom(),fl=alane[0];
+  for(let L=0;L<2;L++){const T=1-L,tg=lanes[T];
+    const snap=lanes[L].slice();let gone=0;
+    for(let si=0;si<snap.length;si++){const c=snap[si];
+      if(c.crashed||(c.id+stepN)%10||t-(c.lcT??-99)<4||c.x<CL+60)continue;
+      const arr=lanes[L],i=si-gone,ol=arr[i-1],of=arr[i+1];
+      let lo=0,hi=tg.length;while(lo<hi){const m=(lo+hi)>>1;if(tg[m].x>c.x)lo=m+1;else hi=m}const li=lo-1;
+      const nl=li>=0?tg[li]:null,nf=tg[li+1]||null;
+      let sN=1e9,dvN=0;
+      if(nl){sN=nl.x-CL-c.x;if(sN<3)continue;dvN=c.v-nl.v}
+      if(T===0&&fl&&fl.x>E-250&&fl.x>c.x){const sf=fl.x-CL-c.x;if(sf<sN){sN=Math.max(0.5,sf);dvN=c.v-fl.v}}
+      const aNew=Math.max(-P.brake,idm(c.v,c.v0,sN,dvN));
+      let dNf=0;
+      if(nf){const g=c.x-CL-nf.x;if(g<3)continue;
+        if(!nf.crashed){const an=idm(nf.v,nf.v0,g,nf.v-c.v);if(an<-P.bsafe)continue;dNf=an-nf.a}}
+      let dOf=0;
+      if(of&&!of.crashed){const an=ol?idm(of.v,of.v0,ol.x-CL-of.x,of.v-ol.v):idm(of.v,of.v0,1e9,0);dOf=an-of.a}
+      if(aNew-c.a+POL*(dNf+dOf)<=ATHR)continue;
+      arr.splice(i,1);tg.splice(li+1,0,c);
+      if(c.tr&&c.tr.length)trajStore.push({L,p:c.tr});c.tr=[[t,c.x]];
+      c.lane=T;c.lcT=t;c.lat=L-T;lcCount++;gone++;
+    }
+  }
+}
+
+function step(){
+  stepN++;t=stepN*DT;
+  const g=geom();
+  if(stepN%10===0){for(const arr of lanes)for(const c of arr){if(c.crashed)continue;actN++;act[Math.min(27,Math.floor(c.v/MPH/2))]++}}
+  while(t>=nextArr){queue++;nextArr+=expo(P.flow/3600)}
+  // spawn at the entrance into whichever lane has more room
+  for(let k=0;k<2&&queue>0;k++){
+    const v0=Math.max(8,P.mean+P.sd*gauss())*MPH,ord=Math.random()<.5?[0,1]:[1,0];let best=-1,room=-1;
+    for(const L of ord){const last=lanes[L][lanes[L].length-1],vs=last?Math.min(v0,last.v):v0,need=CL+8+vs*P.headway,r=last?last.x-CL:1e9;if(r>=need&&r>room){room=r;best=L}}
+    if(best<0)break;
+    const arr=lanes[best],last=arr[arr.length-1],vs=last?Math.min(v0,last.v):v0;
+    arr.push({id:nid++,x:CL,v:vs,v0,t0:t,xs:CL,occ:P.ppc,lane:best,lat:0,a:0,tr:[[t,CL]]});queue--;entered++;gen.push(v0/MPH);
+  }
+  // crash: starts at random from the crash rate, blocks its lane until cleared
+  if(crash){
+    if(t>=crash.clearAt){const c=crash.car,arr=lanes[c.lane];extraFt+=Math.max(0,c.x-c.xs);arr.splice(arr.indexOf(c),1);if(c.tr)trajStore.push({L:c.lane,p:c.tr});crash=null}
+  }else if(P.crash>0){
+    let sv=0;for(const arr of lanes)for(const c of arr)sv+=c.v;
+    if(sv>0&&Math.random()<P.crash*(sv*DT/5280)/1e6)startCrash();
+  }
+  ramp();
+  mainAcc();
+  // move cars and read point detectors A and D
+  for(let L=0;L<2;L++){const dA=det.A[L],dD=det.D[L];let oA=false,oD=false;
+    for(const c of lanes[L]){const px=c.x;
+      if(c.crashed)c.v=0;else{c.v=Math.max(0,c.v+c.a*DT);c.x+=c.v*DT}
+      if(px<g.xA&&c.x>=g.xA){dA.n++;dA.sv+=c.v;dA.si+=1/Math.max(c.v,0.1)}
+      if(px<g.xD&&c.x>=g.xD){dD.n++;dD.sv+=c.v;dD.si+=1/Math.max(c.v,0.1)}
+      if(c.x>=g.xA&&c.x-CL<=g.xA)oA=true;
+      if(c.x>=g.xD&&c.x-CL<=g.xD)oD=true;
+    }
+    if(oA)dA.occ+=DT;if(oD)dD.occ+=DT;
+  }
+  laneChanges();
+  for(const arr of lanes)for(const c of arr)if(c.lat)c.lat=c.lat>0?Math.max(0,c.lat-DT/8):Math.min(0,c.lat+DT/8); // slide lasts at most 8 sim-s (about 0.5 s real at 1×)
+  for(let L=0;L<2;L++){const arr=lanes[L];
+    while(arr.length&&arr[0].x-CL>FT){
+      const c=arr.shift();exited++;people+=c.occ;const dist=FT+CL-c.xs;exitFt+=dist;tripD+=dist;exits.push(t);tripSum+=t-c.t0;tripN++;
+      c.tr.push([t,c.x]);trajStore.push({L,p:c.tr});
+    }
+  }
+  while(exits.length&&exits[0]<t-300)exits.shift();
+  // x-t speed field and trajectories
+  const col=Math.floor(t/TB+1e-9);
+  if(col!==lastCol){for(let a=Math.max(lastCol+1,col-NT+1);a<=col;a++){const r=(a%NT)*NX;for(let L=0;L<2;L++){sfSum[L].fill(0,r,r+NX);sfCnt[L].fill(0,r,r+NX)}}lastCol=col}
+  if(stepN%10===0){const r=(col%NT)*NX;for(let L=0;L<2;L++)for(const c of lanes[L]){const xb=Math.min(NX-1,Math.max(0,Math.floor(c.x/XB)));sfSum[L][r+xb]+=c.v/MPH;sfCnt[L][r+xb]++}}
+  if(stepN%20===0){for(const arr of lanes)for(const c of arr)c.tr.push([t,c.x]);
+    if(stepN%600===0)trajStore=trajStore.filter(s=>s.p[s.p.length-1][0]>t-NT*TB)}
+  if(stepN%300===0)closeInterval();
+}
+
+// ---------- detectors, breakdown, wave speed ----------
+function closeInterval(){
+  const t1=Math.round(t),t0=t1-DINT,g=geom(),rows=[];
+  const mk=(id,L,d,x)=>{const q=d.n*3600/DINT,ut=d.n?d.sv/d.n/MPH:null,us=d.n?d.n/d.si/MPH:null,occ=d.occ/DINT;let k,flag='OK';
+    if(d.n>=2&&us>0.5)k=q/us;else{k=occ*5280/CL;flag=d.n?'K_FROM_OCC':(occ>0.05?'STOPPED':'NO_VEH')}
+    return{sensor:id,lane:L?'L':'R',x_ft:Math.round(x),t0,t1,count:d.n,flow_vph:q,tmean_mph:ut,smean_mph:us,density_vpm:k,occ_pct:occ*100,flag}};
+  rows.push(mk('A',0,det.A[0],g.xA),mk('A',1,det.A[1],g.xA),mk('D',0,det.D[0],g.xD),mk('D',1,det.D[1],g.xD));
+  rows.push({sensor:'B',lane:'ramp',x_ft:Math.round(g.M),t0,t1,count:det.B.n,flow_vph:det.B.n*3600/DINT,blocked:det.B.blk,flag:det.B.blk?'SPILLBACK':'OK'});
+  rows.push({sensor:'C',lane:'ramp',x_ft:Math.round(g.M),t0,t1,count:det.C.n,flow_vph:det.C.n*3600/DINT,avg_queue:det.C.q/DINT,max_queue:det.C.qmax,avg_wait_s:det.C.n?det.C.w/det.C.n:null,flag:det.C.qmax>=P.nmax?'FULL':'OK'});
+  newDet();detLog.push(...rows);detLast=rows;uiDirty=true;
+  // breakdown at A (right lane), flows measured at D (both lanes)
+  const aR=rows[0],dq=rows[2].flow_vph+rows[3].flow_vph;
+  const uA=aR.smean_mph!=null?aR.smean_mph:(aR.flag==='STOPPED'?0:P.mean);
+  dHist.push(dq);aHist.push({q:aR.flow_vph,k:aR.density_vpm,u:uA});
+  const thr=0.6*P.mean,n=dHist.length,warm=t>=600; // skip the first 10 min while the 4 km road fills
+  if(!bd.ev){
+    if(uA<thr&&warm){bd.below++;
+      if(bd.below>=3){const s=n-3,fr=bd.free;const pre=fr>=4?dHist.slice(Math.max(0,s-Math.min(10,fr)),s):[]; // only free-flow intervals count as pre-breakdown
+        const ev={s,t:t0-DINT,endIdx:null,end:null,pre:pre.length?avg(pre):null,crash:!!crash};bdEvents.push(ev);bd={ev,below:0,above:0,free:0}}}
+    else{bd.below=0;if(warm)bd.free++}
+  }else{
+    if(crash)bd.ev.crash=true;
+    if(uA>=thr){bd.above++;if(bd.above>=2){bd.ev.endIdx=n-2;bd.ev.end=t0-DINT;updEv(bd.ev);bd={ev:null,below:0,above:0,free:2}}}
+    else bd.above=0;
+  }
+  if(bd.ev)updEv(bd.ev);
+  if(stepN%600===0)wave=[waveSpeed(0),waveSpeed(1)];
+}
+function updEv(ev){
+  const e=ev.endIdx!=null?ev.endIdx:dHist.length;
+  const dq=dHist.slice(ev.s+2,e);ev.qdf=dq.length?avg(dq):null;
+  ev.drop=(ev.pre&&ev.qdf!=null)?100*(1-ev.qdf/ev.pre):null;
+  const fr=aHist.slice(Math.max(0,ev.s-4),ev.s),cg=aHist.slice(ev.s,Math.min(e,ev.s+4));
+  ev.w=null;
+  if(ev.pre!=null&&fr.length&&cg.length){const qf=avg(fr.map(a=>a.q)),kf=avg(fr.map(a=>a.k)),qc=avg(cg.map(a=>a.q)),kc=avg(cg.map(a=>a.k));if(kc-kf>10){const w=(qf-qc)/(kf-kc);if(Math.abs(w)<60)ev.w=w}}
+}
+// cross-correlate speed series 800 ft apart; the lag that best lines them up gives the wave speed
+function waveSpeed(L){
+  const W=Math.min(300,lastCol-1);if(W<90)return null;
+  const a0=lastCol-W,SR=[];
+  for(let xb=0;xb<NX;xb++){const s=new Float32Array(W);for(let k=0;k<W;k++){const r=((a0+k)%NT)*NX+xb,c=sfCnt[L][r];s[k]=c?sfSum[L][r]/c:NaN}SR.push(s)}
+  const D=8,ws=[];
+  for(let i=0;i+D<NX;i+=2){const A=SR[i],B=SR[i+D];
+    let m=0,c=0;for(const v of A)if(v===v){m+=v;c++}if(c<W*0.6)continue;m/=c;
+    let sd=0;for(const v of A)if(v===v)sd+=(v-m)*(v-m);sd=Math.sqrt(sd/c);
+    if(m>0.6*P.mean||sd<2)continue; // congested cells only
+    let best=0,bl=0;
+    for(let lag=1;lag<=50;lag++){let n=0,sa=0,sb=0,saa=0,sbb=0,sab=0;
+      for(let k=Math.max(0,lag);k<W&&k<W+lag;k++){const x=A[k],y=B[k-lag];if(x!==x||y!==y)continue;n++;sa+=x;sb+=y;saa+=x*x;sbb+=y*y;sab+=x*y}
+      if(n<40)continue;const ma=sa/n,mb=sb/n,va=saa/n-ma*ma,vb=sbb/n-mb*mb;if(va<=0||vb<=0)continue;
+      const r=(sab/n-ma*mb)/Math.sqrt(va*vb);if(r>best){best=r;bl=lag}}
+    if(best>0.6&&bl!==0)ws.push(-(D*XB)/(bl*TB)/MPH);
+  }
+  return ws.length>=2?{w:median(ws),n:ws.length}:null;
+}
+function idmEq(){const v0=P.mean*MPH,pts=[];for(let i=0;i<=240;i++){const v=v0*i/240*0.9995,se=(S0+v*P.headway)/Math.sqrt(1-Math.pow(v/v0,4)),k=5280/(se+CL);pts.push([k,k*v/MPH])}return pts}
+
+// ---------- drawing ----------
+const road=$('road'),rc=road.getContext('2d'),xt=$('xt'),xc=xt.getContext('2d'),qk=$('qk'),qc=qk.getContext('2d'),hist=$('hist'),hc=hist.getContext('2d');
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv,h){const d=window.devicePixelRatio||1,w=cv.parentElement.clientWidth-20;cv.width=w*d;cv.height=h*d;cv.style.height=h+'px';cv.getContext('2d').setTransform(d,0,0,d,0,0);return w}
+let W=0,HW=0,XW=0,QW=0,uiDirty=true;
+function resize(){W=fit(road,390);XW=fit(xt,330);QW=fit(qk,300);HW=fit(hist,200)}
+const PAL=[];for(let i=0;i<=60;i++)PAL.push(`hsl(${5+Math.min(1,Math.max(0,(i-5)/45))*195},80%,52%)`);
+const spc=mph=>PAL[Math.max(0,Math.min(60,Math.round(mph)))];
+const LH=18,ROAD=LH*2,GAP=60,RH=ROAD+GAP,PAD=24;
+const rowY=r=>r*RH+6;
+const laneY=(r,p)=>p>=0?rowY(r)+27-18*p:rowY(r)+27-20*p; // p: 1 left, 0 right, -1 accel lane
+const ease=u=>u*u*(3-2*u);
+function drawRoad(){
+  const ctx=rc,len=W-PAD*2,k=len/ROWFT,g=geom();
+  ctx.clearRect(0,0,W,400);ctx.font='600 12px Barlow,sans-serif';
+  for(let r=0;r<ROWS;r++){
+    const y=rowY(r);ctx.fillStyle=css('--road');ctx.fillRect(PAD,y,len,ROAD);
+    ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.5;ctx.setLineDash([10,10]);ctx.beginPath();ctx.moveTo(PAD,y+LH);ctx.lineTo(PAD+len,y+LH);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#c9cdca';ctx.fillText((r*1000).toLocaleString()+' m',PAD+4,y+13);
+  }
+  ctx.fillStyle=css('--muted');ctx.textAlign='right';ctx.fillText('C: exit at 4,000 m',PAD+len,ROWS*RH-6);ctx.textAlign='left';
+  // detectors A and D
+  for(const [nm,xd] of [['A',g.xA],['D',g.xD]]){const r=Math.min(ROWS-1,Math.floor(xd/ROWFT)),px=PAD+(xd-r*ROWFT)*k,y=rowY(r);
+    ctx.fillStyle=css('--mark');ctx.fillRect(px-1.5,y-3,3,ROAD+6);ctx.font='700 12px Barlow,sans-serif';ctx.fillText(nm,px+4,y+ROAD+13);ctx.font='600 12px Barlow,sans-serif'}
+  // ramp: entry/meter at R0, ramp road R0->M drawn just below the main road, acceleration lane M->E attached to it
+  const M=g.M,E=g.E,R0=g.R0,rowOf=x=>Math.min(ROWS-1,Math.floor(x/ROWFT)),pxOf=x=>PAD+(x-rowOf(x)*ROWFT)*k;
+  const seg=(a0,a1,fn)=>{for(let r2=0;r2<ROWS;r2++){const a=Math.max(a0,r2*ROWFT),e=Math.min(a1,(r2+1)*ROWFT);if(e>a)fn(r2,PAD+(a-r2*ROWFT)*k,(e-a)*k,e===a1)}};
+  seg(R0,M,(r2,xa,w)=>{const yy=rowY(r2)+ROAD+6;ctx.fillStyle=css('--sign');ctx.fillRect(xa,yy-2,w,22);ctx.fillStyle=css('--road');ctx.fillRect(xa,yy,w,18)});
+  seg(M,E,(r2,xa,w,last)=>{const yy=rowY(r2)+ROAD;ctx.fillStyle=css('--sign');ctx.fillRect(xa-1,yy,w+2,25);ctx.fillStyle=css('--road');ctx.fillRect(xa,yy,w,22);if(last){ctx.fillStyle=css('--mark');ctx.fillRect(xa+w-3,yy,3,22)}});
+  const rr=rowOf(R0),bx=pxOf(R0),qy=rowY(rr)+ROAD+38;
+  const shown=Math.min(rampQ.length,Math.max(0,Math.floor((W-bx-10)/20)));
+  for(let i=0;i<shown;i++){ctx.fillStyle=spc(rampQ[i].v0/MPH);ctx.fillRect(bx+10+i*20,qy-6,17,12)}
+  for(const c of alane){ctx.fillStyle=spc(c.v/MPH);
+    seg(Math.max(R0,c.x-CL),c.x,(r2,xa,w)=>{const yy=rowY(r2)+ROAD+(c.x<M?15:11);ctx.fillRect(xa,yy-6,w-1,12)})}
+  ctx.fillStyle=(rampQ.length&&rampQ[0].hs!==undefined&&t-rampQ[0].hs>=P.meter)?'#2fbf71':'#e5252a';ctx.beginPath();ctx.arc(bx+3,qy,4,0,6.283);ctx.fill();
+  ctx.fillStyle=css('--mark');ctx.font='700 12px Barlow,sans-serif';ctx.fillText('B, C',Math.max(2,bx-28),qy+4);
+  ctx.fillStyle=css('--muted');ctx.font='600 12px Barlow,sans-serif';
+  ctx.fillText('Ramp storage '+rampQ.length+'/'+P.nmax+' · meter '+P.meter.toFixed(1)+' s · ramp '+P.rampL+' m',Math.min(bx+10+Math.max(shown,1)*20+8,W-300),qy+4);
+  // mainline cars
+  const cw=CL*k;
+  for(let L=0;L<2;L++)for(const c of lanes[L]){
+    ctx.fillStyle=spc(c.v/MPH);
+    const p=L+(c.lat?Math.sign(c.lat)*ease(Math.abs(c.lat)):0);
+    for(let r2=0;r2<ROWS;r2++){const a=Math.max(c.x-CL,r2*ROWFT),e=Math.min(c.x,(r2+1)*ROWFT);
+      if(e>a){const y=laneY(r2,p);ctx.fillRect(PAD+(a-r2*ROWFT)*k,y-6,(e-a)*k-(cw>6?1:0),12)}}
+  }
+  if(crash){const c=crash.car,r2=Math.min(ROWS-1,Math.floor((c.x-1)/ROWFT)),y=laneY(r2,c.lane),px=PAD+(c.x-r2*ROWFT)*k;
+    ctx.fillStyle='#fff';ctx.strokeStyle='#e5252a';ctx.lineWidth=2;ctx.fillRect(px-cw-1,y-6,cw+2,12);ctx.strokeRect(px-cw-1,y-6,cw+2,12);
+    ctx.fillStyle='#e5252a';ctx.font='700 12px Barlow,sans-serif';ctx.textAlign='center';ctx.fillText('CRASH',px-cw/2,c.lane?y-9:y+19);ctx.textAlign='left'}
+}
+function axes(ctx,L,Tp,w,h,xt,yt){ctx.strokeStyle=css('--line');ctx.lineWidth=1;ctx.strokeRect(L,Tp,w,h);ctx.fillStyle=css('--muted');ctx.font='12px Barlow,sans-serif';
+  ctx.textAlign='center';ctx.fillText(xt,L+w/2,Tp+h+28);ctx.save();ctx.translate(12,Tp+h/2);ctx.rotate(-Math.PI/2);ctx.fillText(yt,0,0);ctx.restore();ctx.textAlign='left'}
+function drawXT(){
+  const ctx=xc,H=330,L=50,B=36,Tp=8,w=XW-L-10,h=H-B-Tp,Ln=P.xtl,span=NT*TB,t0=Math.max(0,t-span),g=geom();
+  ctx.clearRect(0,0,XW,H);
+  const X=tt=>L+(tt-t0)/span*w,Y=x=>Tp+h-x/FT*h;
+  ctx.save();ctx.beginPath();ctx.rect(L,Tp,w,h);ctx.clip();
+  const cw=w/NT+0.7,ch=h*XB/FT+0.7;
+  for(let a=Math.max(0,Math.ceil(t0/TB));a<=lastCol;a++){const r=(a%NT)*NX,px=X(a*TB);
+    for(let xb=0;xb<NX;xb++){const n=sfCnt[Ln][r+xb];if(!n)continue;ctx.fillStyle=spc(sfSum[Ln][r+xb]/n);ctx.fillRect(px,Y((xb+1)*XB),cw,ch)}}
+  ctx.strokeStyle=css('--traj');ctx.lineWidth=0.8;ctx.beginPath();
+  const path=(p,cur)=>{let st=false;for(const [tt,x] of p){if(tt<t0)continue;st?ctx.lineTo(X(tt),Y(x)):ctx.moveTo(X(tt),Y(x));st=true}if(cur&&st)ctx.lineTo(X(t),Y(cur.x))};
+  for(const s of trajStore)if(s.L===Ln)path(s.p);
+  for(const c of lanes[Ln])path(c.tr,c);
+  ctx.stroke();
+  ctx.setLineDash([5,5]);ctx.lineWidth=1;ctx.font='600 11px Barlow,sans-serif';
+  const ref=[['A',g.xA],['D',g.xD]];if(Ln===0)ref.push(['merge',g.M],['accel. lane end',g.E]);ref.sort((a,b)=>a[1]-b[1]);
+  for(const [nm,x] of ref){ctx.strokeStyle=css('--ink');ctx.globalAlpha=.6;ctx.beginPath();ctx.moveTo(L,Y(x));ctx.lineTo(L+w,Y(x));ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=css('--ink');ctx.fillText(nm,L+4,Y(x)-3)}
+  ctx.setLineDash([]);ctx.restore();
+  axes(ctx,L,Tp,w,h,'Time (min)','Position x (m)');
+  ctx.fillStyle=css('--muted');ctx.font='12px Barlow,sans-serif';ctx.textAlign='right';
+  for(let m=0;m<=4000;m+=1000)ctx.fillText(m.toLocaleString(),L-4,Y(m*M2F)+4);
+  ctx.textAlign='center';for(let s=Math.ceil(t0/120)*120;s<=t0+span;s+=120)ctx.fillText((s/60).toFixed(0),X(s),Tp+h+14);ctx.textAlign='left';
+}
+function drawQK(){
+  const ctx=qc,H=300,L=56,B=36,Tp=10,w=QW-L-12,h=H-B-Tp;ctx.clearRect(0,0,QW,H);
+  const eq=idmEq(),cap=Math.max(...eq.map(p=>p[1])),kmax=240,qmax=Math.max(2600,Math.ceil(cap/500)*500+500);
+  const X=k=>L+Math.min(k,kmax)/kmax*w,Y=q=>Tp+h-q/qmax*h;
+  ctx.fillStyle=css('--muted');ctx.font='12px Barlow,sans-serif';ctx.strokeStyle=css('--line');ctx.lineWidth=1;
+  ctx.textAlign='right';for(let q=0;q<=qmax;q+=500){ctx.beginPath();ctx.moveTo(L,Y(q));ctx.lineTo(L+w,Y(q));ctx.stroke();ctx.fillText(q,L-4,Y(q)+4)}
+  ctx.textAlign='center';for(let k=0;k<=kmax;k+=40)ctx.fillText(k,X(k),Tp+h+14);ctx.textAlign='left';
+  for(const r of detLog){if(r.sensor!=='A'&&r.sensor!=='D')continue;const col=r.sensor==='A'?'#e07b39':'#3b8eea';
+    ctx.beginPath();ctx.arc(X(r.density_vpm),Y(r.flow_vph),3,0,6.283);
+    if(r.lane==='R'){ctx.globalAlpha=.65;ctx.fillStyle=col;ctx.fill()}else{ctx.globalAlpha=.8;ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke()}ctx.globalAlpha=1}
+  ctx.strokeStyle=css('--mark');ctx.lineWidth=2.5;ctx.beginPath();eq.forEach((p,i)=>i?ctx.lineTo(X(p[0]),Y(p[1])):ctx.moveTo(X(p[0]),Y(p[1])));ctx.stroke();
+  const pk=eq.find(p=>p[1]===cap);ctx.fillStyle=css('--ink');ctx.font='600 12px Barlow,sans-serif';
+  ctx.fillText('IDM capacity ≈ '+Math.round(cap).toLocaleString()+' veh/h/lane at k ≈ '+Math.round(pk[0]),Math.min(X(pk[0])+6,L+w-260),Y(cap)-6);
+  axes(ctx,L,Tp,w,h,'Density k (veh/mi/lane)','Flow q (veh/h/lane)');
+}
+function drawHist(){
+  const ctx=hc,L=34,B=24,Tp=8,w=HW-L-8,h=200-B-Tp,lo=0,hi=56,bw=2,nb=(hi-lo)/bw;
+  ctx.clearRect(0,0,HW,200);
+  const bins=new Array(nb).fill(0);
+  for(const v of gen){const i=Math.floor((v-lo)/bw);if(i>=0&&i<nb)bins[i]++}
+  const n=Math.max(1,gen.length),pdf=x=>Math.exp(-0.5*Math.pow((x-P.mean)/P.sd,2))/(P.sd*Math.sqrt(2*Math.PI));
+  const an=Math.max(1,actN),ymax=Math.max(pdf(P.mean)*bw,...bins.map(b=>b/n),...act.map(b=>b/an))*1.15;
+  ctx.fillStyle=css('--sign');ctx.globalAlpha=.75;
+  bins.forEach((b,i)=>{const bh=b/n/ymax*h;ctx.fillRect(L+i*w/nb+1,Tp+h-bh,w/nb-2,bh)});
+  ctx.globalAlpha=1;ctx.strokeStyle=css('--mark');ctx.lineWidth=2;ctx.beginPath();
+  for(let x=lo;x<=hi;x+=.5){const px=L+(x-lo)/(hi-lo)*w,py=Tp+h-pdf(x)*bw/ymax*h;x===lo?ctx.moveTo(px,py):ctx.lineTo(px,py)}
+  ctx.stroke();
+  if(actN){ctx.strokeStyle='#3b8eea';ctx.fillStyle='#3b8eea';ctx.lineWidth=2.5;ctx.beginPath();
+    act.forEach((b,i)=>{const px=L+(i+.5)*w/nb,py=Tp+h-b/an/ymax*h;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.stroke();
+    act.forEach((b,i)=>{ctx.beginPath();ctx.arc(L+(i+.5)*w/nb,Tp+h-b/an/ymax*h,2.5,0,6.283);ctx.fill()})}
+  ctx.fillStyle=css('--muted');ctx.font='12px Barlow,sans-serif';ctx.textAlign='center';
+  for(let x=lo;x<=hi;x+=10)ctx.fillText(x+' mph',L+(x-lo)/(hi-lo)*w,200-6);
+  ctx.textAlign='left';ctx.strokeStyle=css('--line');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(L,Tp+h);ctx.lineTo(L+w,Tp+h);ctx.stroke();
+}
+const f=(v,d=0)=>v==null||!isFinite(v)?'–':(+v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const clk=s=>{s=Math.round(s);return Math.floor(s/3600)+':'+String(Math.floor(s%3600/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+function detUI(){
+  if(!uiDirty)return;uiDirty=false;const g=geom();
+  $('detNote').innerHTML=`A at x = 1,500 m (main road, upstream of the merge), B at the ramp entry (x = ${Math.round(g.R0/M2F).toLocaleString()} m), C on the ramp queue at the meter stop line, D at x = 3,300 m (main road, downstream). Point C, the destination, is the road exit at x = 4,000 m. Speed is the space-mean speed (harmonic mean of spot speeds). Density is q / u<sub>s</sub>, or comes from occupancy when fewer than two cars pass.`;
+  let h='<tr><th>Sensor</th><th>Lane</th><th>Count</th><th>Flow (veh/h)</th><th>Speed (mph)</th><th>Density (veh/mi)</th><th>Occupancy / queue</th><th>Flag</th></tr>';
+  for(const r of detLast){
+    if(r.sensor==='A'||r.sensor==='D')h+=`<tr><td>${r.sensor}</td><td>${r.lane==='R'?'Right':'Left'}</td><td>${r.count}</td><td>${f(r.flow_vph)}</td><td>${f(r.smean_mph,1)}</td><td>${f(r.density_vpm)}</td><td>${f(r.occ_pct)}%</td><td>${r.flag}</td></tr>`;
+    else if(r.sensor==='B')h+=`<tr><td>B</td><td>Ramp entry</td><td>${r.count}</td><td>${f(r.flow_vph)}</td><td>–</td><td>–</td><td>${r.blocked} turned away</td><td>${r.flag}</td></tr>`;
+    else h+=`<tr><td>C</td><td>Ramp meter</td><td>${r.count}</td><td>${f(r.flow_vph)}</td><td>–</td><td>–</td><td>avg ${f(r.avg_queue,1)}, max ${r.max_queue} · wait ${f(r.avg_wait_s,0)} s</td><td>${r.flag}</td></tr>`;
+  }
+  $('detT').innerHTML=h;
+  $('detTime').textContent=detLast.length?`Latest interval ${clk(detLast[0].t0)}–${clk(detLast[0].t1)} · ${detLog.length/6} intervals logged`:'Waiting for first 30 s interval…';
+  const ev=bdEvents[bdEvents.length-1];
+  $('bS').textContent=bd.ev?'Broken down':'Free flow';
+  $('bF').textContent=ev&&ev.pre!=null?f(ev.pre)+' /hr':'–';
+  $('bQ').textContent=ev&&ev.qdf!=null?f(ev.qdf)+' /hr':'–';
+  $('bDr').textContent=ev&&ev.drop!=null?f(ev.drop,1)+'%':'–';
+  $('wS').textContent=ev&&ev.w!=null?f(ev.w,1)+' mph':'–';
+  $('wX').textContent=(wave[0]?f(wave[0].w,1):'–')+' / '+(wave[1]?f(wave[1].w,1):'–')+' mph';
+  $('wN').textContent=f(-(CL+S0)/P.headway/MPH,1)+' mph';
+  let b='<tr><th>#</th><th>Start</th><th>End</th><th>Breakdown flow (veh/h)</th><th>Queue discharge (veh/h)</th><th>Capacity drop</th><th>Shockwave ω (mph)</th><th>Crash active</th></tr>';
+  if(!bdEvents.length)b+='<tr><td colspan="8" style="text-align:left;color:var(--muted)">No breakdowns yet. Try raising main road demand or ramp flow, or trigger a crash.</td></tr>';
+  bdEvents.forEach((e,i)=>{b+=`<tr><td>${i+1}</td><td>${clk(e.t)}</td><td>${e.end!=null?clk(e.end):'ongoing'}</td><td>${e.pre!=null?f(e.pre):'congested from start'}</td><td>${f(e.qdf)}</td><td>${e.drop!=null?f(e.drop,1)+'%':'–'}</td><td>${f(e.w,1)}</td><td>${e.crash?'Yes':'No'}</td></tr>`});
+  $('bdT').innerHTML=b;
+}
+function stats(){
+  $('sClock').textContent=clk(Math.floor(t));
+  const all=lanes[0].concat(lanes[1]);
+  $('sOn').textContent=all.length;$('sQ').textContent=queue;$('sIO').textContent=entered+' / '+exited;
+  $('sPP').textContent=Math.round(people).toLocaleString();
+  const mv=a=>a.length?(a.reduce((s,c)=>s+c.v,0)/a.length/MPH).toFixed(0):'–';
+  $('sV').textContent=all.length?mv(lanes[0])+' / '+mv(lanes[1])+' mph':'–';
+  $('sD').textContent=(all.length/(FT/5280)/2).toFixed(0)+' cars/mi/lane';
+  $('sF').textContent=t>60?Math.round(exits.length*3600/Math.min(300,t))+' /hr':'–';
+  const useM=t>300,fl=useM?exits.length*12:P.flow+P.ramp;
+  $('sAL').textContent=useM?'Projected AADT (measured × 24)':'Projected AADT (input × 24)';
+  $('sA').textContent=Math.round(fl*24).toLocaleString();
+  const vmt=(exitFt+extraFt+all.reduce((a,c)=>a+Math.max(0,c.x-c.xs),0)+alane.reduce((a,c)=>a+Math.max(0,c.x-c.xs),0))/5280;
+  $('sVM').textContent=vmt.toFixed(1);
+  const avgMi=exited?exitFt/exited/5280:FT/5280;
+  $('sVD').textContent=Math.round(fl*24*avgMi).toLocaleString();
+  $('sCr').textContent=nCrash;
+  if(crash){const r=Math.max(0,crash.clearAt-t);$('sCS').textContent=(crash.car.lane?'Left':'Right')+' blocked, '+Math.floor(r/3600)+'h '+String(Math.floor(r%3600/60)).padStart(2,'0')+'m'}else $('sCS').textContent='Clear';
+  $('sCY').textContent=(fl*24*365*avgMi*P.crash/1e6).toFixed(1);
+  $('sLC').textContent=lcCount.toLocaleString();
+  $('sRQ').textContent=rampQ.length+' / '+P.nmax;$('sRB').textContent=rampBlocked;$('sLN').textContent=alane.length;$('sRM').textContent=merged;
+  $('sRW').textContent=merged?(waitSum/merged).toFixed(1)+' s':'–';
+  $('sT').textContent=tripN?(tripSum/tripN).toFixed(0)+' s ('+(tripD/tripSum/MPH).toFixed(1)+' mph)':'–';
+}
+function csv(){
+  const cols=['sensor','lane','x_ft','t0','t1','count','flow_vph','tmean_mph','smean_mph','density_vpm','occ_pct','blocked','avg_queue','max_queue','avg_wait_s','flag'];
+  const head=['sensor_id','lane','x_ft','interval_start_s','interval_end_s','count','flow_vph','time_mean_speed_mph','space_mean_speed_mph','density_veh_per_mi','occupancy_pct','turned_away','avg_queue','max_queue','avg_wait_s','quality_flag'];
+  const out=[head.join(',')].concat(detLog.map(r=>cols.map(c=>{const v=r[c];return v==null?'':(typeof v==='number'?+v.toFixed(3):v)}).join(',')));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'}));a.download='detectors.csv';document.body.appendChild(a);a.click();a.remove();
+}
+
+// ---------- loop ----------
+let last=performance.now(),accT=0,lastHeavy=0;
+function frame(now){
+  const rdt=Math.min(0.1,(now-last)/1000);last=now;
+  if(P.running){accT+=rdt*P.speedup*15;let n=0;while(accT>=DT&&n<1500){step();accT-=DT;n++}if(n>=1500)accT=0}
+  const dec=rdt/0.5; // lane-change and ramp slides take 0.5 s of real time at any playback speed
+  for(const arr of lanes)for(const c of arr)if(c.lat)c.lat=c.lat>0?Math.max(0,c.lat-dec):Math.min(0,c.lat+dec);
+  drawRoad();stats();
+  if(now-lastHeavy>300){lastHeavy=now;drawXT();drawQK();drawHist();detUI()}
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+$('play').onclick=()=>{P.running=!P.running;$('play').textContent=P.running?'Pause':'Play'};
+$('reset').onclick=reset;
+$('crashnow').onclick=startCrash;
+$('csv').onclick=csv;
+$('speedup').onchange=e=>P.speedup=+e.target.value;
+$('xtl').onchange=e=>P.xtl=+e.target.value;
+$('lc').onchange=e=>P.lc=e.target.checked;
+const one=new Set(['headway','crash','clear','ppc','meter']);
+[['flow','flowv'],['mean','meanv'],['sd','sdv'],['headway','hwv'],['crash','crv'],['clear','clv'],['ppc','ppv'],['ramp','rfv'],['rampm','rmv'],['rampL','rLv'],['rlen','rlv'],['brake','mbv'],['meter','mtv'],['nmax','nmv'],['bsafe','bsv']].forEach(([k,o])=>{
+  $(k).oninput=e=>{const v=+e.target.value;P[k]=v;$(o).textContent=k==='rampm'?v.toLocaleString():one.has(k)?v.toFixed(1):e.target.value;
+    if(k==='mean'||k==='sd'){gen=[];act.fill(0);actN=0}
+    if(k==='rampm'||k==='rlen'||k==='rampL'){alane.slice().reverse().forEach(c=>rampQ.unshift({t:c.ta,v0:c.v0}));alane=[]}
+    uiDirty=true}
+});
+window.addEventListener('resize',resize);
+reset();resize();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

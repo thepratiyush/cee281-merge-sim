@@ -1,0 +1,19 @@
+test,result,detail
+Parameters vs. proposal,FLAG,"7 differ or fall outside the cited range: v0, a, b, l, q_A, q_B, μ"
+T1 idm() = lecture IDM equation,PASS,max error 1.8e-12 ft/s²
+T2a HTML q–k curve = equation,PASS,"1,865 vs 1,865 veh/h/lane (0.00%)"
+T2b proposal capacity table reproduced,PASS,max difference 0.26%
+T2c capacity at code values,FLAG,"1,865 veh/h/lane at the code's 30 mph mean, below the proposal's 35–75 mph range (1,990–2,520)"
+"T3 conservation, no negative gaps, lane order",PASS,"6 scenarios × 36,000 steps; min gap 3.89 ft"
+T4a detector flow = input demand,PASS,|z| ≤ 1.77
+T4b time-mean ≥ space-mean speed,PASS,every 30 s interval at A and D
+T4c free-flow speed,INFO,space-mean 27.8 mph vs mean desired 30 mph (7% lower: platoons behind slower drivers)
+T5 ramp queue = M/D/1,PASS,"mean queue within 18% of L (3 seeds × 2 h each); the gap grows with ρ, likely because the meter also waits for the previous car to move s0 ahead"
+T6 merge capacity threshold,PASS,"unserved demand passes 5% between 600 and 750 veh/h ramp demand vs predicted 665 (code values); D flow levels off near 2,912 veh/h"
+T6b detector-A breakdown rule,INFO,"right-lane speed at A stays 22–23 mph, above the 18 mph trigger; the delay shows up as ramp wait (58 → 435 s) because the merge gives the main road priority"
+T7a measured wave speed in lecture range,PASS,"[-18.3, -18.3, -18.3] km/h vs −20 to −15 km/h"
+T7b Newell check at code values,FLAG,"Newell −(l+s0)/T = -25.2 km/h at code l, s0; -18.0 km/h with proposal l_eff = 5 m"
+"T8 string stability, code values",INFO,"median ratio by flow: 1200: 0.80, 2400: 0.65, 3200: 0.87 (all below 1: the pulse fades; the proposal predicted growth near capacity)"
+"T8 string stability, proposal values",INFO,"median ratio by flow: 1200: 0.04, 2400: 0.87, 3200: 0.87 (all below 1: the pulse fades; the proposal predicted growth near capacity)"
+T9 Δt = 0.1 vs 0.05 s,PASS,"largest change +12.2% (ramp_wait_s, congested merge; within seed noise); others ≤ 1.6%"
+T10 proposal vs code IDM values,INFO,"throughput at D changes -7.5% with the proposal's a, b, s0, l"

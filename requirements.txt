@@ -1,0 +1,6 @@
+# Python packages for stage3_two_lane_merge/stage3_tests.ipynb
+# Also needs Node.js 18+ on your PATH (Mac: brew install node) to run the HTML model headless.
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+jupyter>=1.0

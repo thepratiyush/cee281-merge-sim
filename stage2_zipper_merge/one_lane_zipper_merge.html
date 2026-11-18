@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>One Lane Road</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+:root{--bg:#f3f3ef;--panel:#fff;--ink:#1c1f1d;--muted:#5d645f;--line:#d6d8d2;--road:#3a3d3f;--mark:#e8b92a;--sign:#0f6b45;--signink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141615;--panel:#1e2120;--ink:#ecefeb;--muted:#9aa29c;--line:#343836;--road:#2a2c2e;--sign:#1a8a5a}}
+:root[data-theme="dark"]{--bg:#141615;--panel:#1e2120;--ink:#ecefeb;--muted:#9aa29c;--line:#343836;--road:#2a2c2e;--sign:#1a8a5a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Barlow,system-ui,Arial,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font:700 34px/1.1 "Barlow Condensed",Impact,sans-serif;margin:0 0 6px}
+.sub{color:var(--muted);max-width:70ch;margin:0 0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+.bar label{display:flex;flex-direction:column;font-size:14px;color:var(--muted);gap:2px;min-width:140px}
+.bar label b{color:var(--ink);font-weight:600}
+button,select{font:600 15px Barlow,sans-serif;padding:7px 14px;border-radius:4px;border:1px solid var(--line);background:var(--sign);color:var(--signink);cursor:pointer}
+select{background:var(--panel);color:var(--ink)}
+button.alt{background:var(--panel);color:var(--ink)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--mark);outline-offset:2px}
+.wrap{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px}
+canvas{display:block;width:100%}
+.legend{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:8px}
+.grad{flex:0 0 160px;height:10px;border-radius:5px;background:linear-gradient(90deg,hsl(5,80%,50%),hsl(55,85%,50%),hsl(200,75%,48%))}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.stat span{display:block;font-size:13px;color:var(--muted)}
+.stat strong{font:700 26px/1.1 "Barlow Condensed",Impact,sans-serif}
+h2{font:700 20px "Barlow Condensed",Impact,sans-serif;margin:18px 0 6px}
+p.note{color:var(--muted);font-size:14px;margin:0 0 8px;max-width:75ch}
+</style>
+</head>
+<body>
+<main>
+<h1>One Lane Road</h1>
+<p class="sub">Each car gets a desired speed drawn from a Gaussian curve (mean 30 mph). Cars can't pass, so faster drivers get stuck behind slower ones. The road is folded into four rows of a quarter mile each; traffic flows left to right, then down. Ramp cars use a zipper merge: they never merge into an occupied spot, hold to the end of the acceleration lane when traffic is under 25 mph, and each mainline car lets in at most one ramp car, so the two streams alternate.</p>
+
+<div class="bar">
+  <button id="play">Pause</button>
+  <button id="reset" class="alt">Reset</button>
+  <button id="crashnow" class="alt">Trigger crash</button>
+  <label>Playback speed (1× = 15 sec/sec)
+    <select id="speedup"><option value="0.2">0.2× (slow)</option><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option><option value="60">60×</option></select>
+  </label>
+  <label>Traffic: <b id="flowv">1000</b> cars/hr<input id="flow" type="range" min="200" max="1800" step="50" value="1000"></label>
+  <label>Mean speed: <b id="meanv">30</b> mph<input id="mean" type="range" min="15" max="55" step="1" value="30"></label>
+  <label>Std. deviation: <b id="sdv">5</b> mph<input id="sd" type="range" min="1" max="12" step="0.5" value="5"></label>
+  <label>Following gap: <b id="hwv">1.0</b> sec<input id="headway" type="range" min="0.5" max="3" step="0.1" value="1"></label>
+  <label>Crash rate: <b id="crv">1.0</b> ACC/MVM<input id="crash" type="range" min="0" max="100" step="0.5" value="1"></label>
+  <label>Time to clear crash: <b id="clv">1.0</b> hours<input id="clear" type="range" min="0.1" max="4" step="0.1" value="1"></label>
+  <label>People per car: <b id="ppv">1.5</b><input id="ppc" type="range" min="1" max="5" step="0.1" value="1.5"></label>
+  <label>On-ramp flow: <b id="rfv">200</b> cars/hr<input id="ramp" type="range" min="0" max="1500" step="50" value="200"></label>
+  <label>On-ramp location: <b id="rmv">0.40</b> mi<input id="rampmi" type="range" min="0.1" max="0.9" step="0.05" value="0.4"></label>
+  <label>Acceleration lane length: <b id="rlv">400</b> ft<input id="rlen" type="range" min="100" max="1000" step="50" value="400"></label>
+  <label>Max braking: <b id="mbv">20</b> ft/s² (32 ≈ 1 g)<input id="brake" type="range" min="5" max="32" step="1" value="20"></label>
+  <label>Ramp meter wait: <b id="mtv">2.0</b> sec/car<input id="meter" type="range" min="0" max="20" step="0.5" value="2"></label>
+</div>
+
+<div class="wrap">
+  <canvas id="road" aria-label="Road simulation, four rows folded from a one-mile road"></canvas>
+  <div class="legend"><span>Slow</span><div class="grad"></div><span>Fast (car colour = current speed)</span></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><span>Clock (h:mm:ss)</span><strong id="sClock">0:00:00</strong></div>
+  <div class="stat"><span>Cars on road</span><strong id="sOn">0</strong></div>
+  <div class="stat"><span>Waiting to enter</span><strong id="sQ">0</strong></div>
+  <div class="stat"><span>Entered / exited</span><strong id="sIO">0 / 0</strong></div>
+  <div class="stat"><span>People moved</span><strong id="sPP">0</strong></div>
+  <div class="stat"><span>Avg speed now</span><strong id="sV">–</strong></div>
+  <div class="stat"><span>Density</span><strong id="sD">0</strong></div>
+  <div class="stat"><span>Exit flow (last 5 min)</span><strong id="sF">–</strong></div>
+  <div class="stat"><span id="sAL">Projected AADT (input × 24)</span><strong id="sA">24,000</strong></div>
+  <div class="stat"><span>VMT this run</span><strong id="sVM">0</strong></div>
+  <div class="stat"><span>Projected daily VMT</span><strong id="sVD">24,000</strong></div>
+  <div class="stat"><span>Crashes this run</span><strong id="sCr">0</strong></div>
+  <div class="stat"><span>Crash status</span><strong id="sCS">Clear</strong></div>
+  <div class="stat"><span>Expected crashes / year</span><strong id="sCY">8.8</strong></div>
+  <div class="stat"><span>On-ramp queue</span><strong id="sRQ">0</strong></div>
+  <div class="stat"><span>In acceleration lane</span><strong id="sLN">0</strong></div>
+  <div class="stat"><span>Merged from ramp</span><strong id="sRM">0</strong></div>
+  <div class="stat"><span>Avg ramp wait</span><strong id="sRW">–</strong></div>
+  <div class="stat"><span>Avg trip time</span><strong id="sT">–</strong></div>
+</div>
+
+<h2>Desired vs. actual speeds</h2>
+<p class="note">Bars are the desired speeds assigned to cars so far, and the yellow line is the Gaussian they're drawn from. The blue line is the speeds cars have actually driven, sampled once per simulated second. Stopped traffic shows up in the 0 mph bin.</p>
+<div class="wrap"><canvas id="hist" aria-label="Histogram of desired speeds with actual speeds overlaid"></canvas>
+  <div class="legend" style="flex-wrap:wrap;gap:6px 16px"><span><i style="display:inline-block;width:12px;height:12px;background:var(--sign);opacity:.75;vertical-align:-1px"></i> Desired (generated)</span><span><i style="display:inline-block;width:12px;height:3px;background:var(--mark);vertical-align:3px"></i> Gaussian</span><span><i style="display:inline-block;width:12px;height:3px;background:#3b8eea;vertical-align:3px"></i> Actual</span></div></div>
+</main>
+
+<script>
+(function(){
+const FT=5280, MPH=1.4667, CL=15, ROWS=4, ROWFT=FT/ROWS, DT=0.1;
+const $=id=>document.getElementById(id);
+const P={flow:1000,mean:30,sd:5,headway:1,crash:1,clear:1,ppc:1.5,ramp:200,rampmi:0.4,rlen:400,brake:20,meter:2,speedup:1,running:true};
+let cars,t,nextArr,queue,entered,exited,exits,tripSum,tripN,gen,nid,crash,nCrash,extraFt,people,act,actN,rampQ,merged,waitSum,exitFt,tripD,lane;
+
+function gauss(){let u=0,v=0;while(!u)u=Math.random();v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function expo(rate){return -Math.log(1-Math.random())/rate}
+function reset(){lane=[];rampQ=[];merged=0;waitSum=0;exitFt=0;tripD=0;act=new Array(28).fill(0);actN=0;people=0;crash=null;nCrash=0;extraFt=0;cars=[];t=0;queue=0;entered=0;exited=0;exits=[];tripSum=0;tripN=0;gen=[];nid=0;nextArr=expo(P.flow/3600)}
+
+// IDM acceleration, reused for merge safety checks
+function idm(v,v0,s,dv){const a=5,b=9,s0=8;return a*(1-Math.pow(v/Math.max(v0,1),4)-Math.pow((s0+Math.max(0,v*P.headway+v*dv/(2*Math.sqrt(a*b))))/Math.max(0.5,s),2))}
+// On-ramp: Poisson arrivals, then gap-acceptance merge for the car at the head of the ramp queue
+// Ramp cars: queue -> acceleration lane (parallel to the road) -> gap-acceptance merge
+function tryMerge(){
+  const M=P.rampmi*5280,E=Math.min(M+P.rlen,FT-20),RV=25*MPH;
+  if(Math.random()<P.ramp/3600*DT)rampQ.push({t:t,v0:Math.max(8,P.mean+P.sd*gauss())*MPH});
+  if(rampQ.length){
+    const head=rampQ[0],last=lane[lane.length-1],vs=Math.min(head.v0,RV);
+    if(head.hs===undefined)head.hs=t;
+    if(t-head.hs>=P.meter&&(!last||last.x-CL-M>=8+vs*1.2)){
+      lane.push({id:nid++,x:M,v:vs,v0:head.v0,t0:t,ta:head.t,xs:M,occ:P.ppc,ent:1});rampQ.shift();
+    }
+  }
+  const acc=lane.map((c,i)=>{
+    let s=Math.max(0.5,E-c.x),dv=c.v;const l=lane[i-1];
+    if(l){const s2=l.x-CL-c.x;if(s2<s){s=Math.max(0.5,s2);dv=c.v-l.v}}
+    return Math.max(-P.brake,idm(c.v,c.v0,s,dv));
+  });
+  lane.forEach((c,i)=>{c.v=Math.max(0,c.v+acc[i]*DT);c.x+=c.v*DT;if(c.x>E){c.x=E;c.v=0}if(c.ent>0)c.ent=Math.max(0,c.ent-DT/3)});
+  for(const c of cars)if(c.lat>0){const dx=c.x-c.lx;c.lx=c.x;c.lat=Math.max(0,c.lat-dx/160-DT/12)}
+  // Zipper merge: only the front ramp car merges; it never merges on top of a car,
+  // holds to the end of the lane when traffic is slow, and each mainline car lets in at most one ramp car.
+  for(let i=0;i<Math.min(1,lane.length);i++){
+    const c=lane[i],n=cars.length;let li=-1;
+    for(let j=0;j<n;j++){if(cars[j].x-CL>=c.x)li=j;else break}
+    const lead=li>=0?cars[li]:null,fol=li+1<n?cars[li+1]:null;
+    if(fol&&fol.x>c.x-CL)continue; // a mainline car is alongside: no room
+    const forced=E-c.x<=150,bs=forced?P.brake:Math.min(P.brake,10+Math.min(10,0.25*(t-c.ta)));
+    const lg=lead?lead.x-CL-c.x:1e9,fg=fol?c.x-CL-fol.x:1e9;
+    const slow=(lead&&lead.v<25*MPH)||(fol&&fol.v<25*MPH);
+    if(slow&&!forced)continue; // congested: use the full lane, merge at the end
+    if(lg<(forced?3:8)||fg<(forced?3:8))continue;
+    if(lead&&idm(c.v,c.v0,lg,c.v-lead.v)<-bs)continue;
+    if(fol&&!fol.crashed&&idm(fol.v,fol.v0,fg,fol.v-c.v)<-(fol.gaveWay?1:bs))continue; // follower already let one in: only take a free gap
+    if(fol)fol.gaveWay=true;
+    c.gaveWay=true;c.lat=1;c.lx=c.x;c.ent=0;cars.splice(li+1,0,c);lane.splice(i,1);merged++;waitSum+=t-c.ta;break;
+  }
+}
+function tryMergeOld(){
+  if(Math.random()<P.ramp/3600*DT)rampQ.push({t:t,v0:Math.max(8,P.mean+P.sd*gauss())*MPH});
+  if(!rampQ.length)return;
+  const M=P.rampmi*5280,n=cars.length;let li=-1;
+  for(let i=0;i<n;i++){if(cars[i].x-CL>=M)li=i;else break}
+  const lead=li>=0?cars[li]:null,fol=li+1<n?cars[li+1]:null;
+  if(fol&&fol.x>M-CL)return;
+  const head=rampQ[0],wait=t-head.t,bs=10+Math.min(10,0.25*wait);
+  const refs=[];if(lead)refs.push(lead.v);if(fol)refs.push(fol.v);
+  const vm=refs.length?Math.min(head.v0,refs.reduce((a,b)=>a+b,0)/refs.length):head.v0;
+  const lg=lead?lead.x-CL-M:1e9,fg=fol?M-CL-fol.x:1e9;
+  if(lg<8||fg<8)return;
+  if(lead&&idm(vm,head.v0,lg,vm-lead.v)<-bs)return;
+  if(fol&&!fol.crashed&&idm(fol.v,fol.v0,fg,fol.v-vm)<-bs)return;
+  cars.splice(li+1,0,{id:nid++,x:M,v:vm,v0:head.v0,t0:t,xs:M,occ:P.ppc});
+  rampQ.shift();merged++;waitSum+=wait;
+}
+function startCrash(){
+  if(crash||!cars.length)return;
+  const c=cars[Math.floor(Math.random()*cars.length)];
+  c.crashed=true;c.v=0;crash={car:c,clearAt:t+P.clear*3600};nCrash++;
+}
+function step(){
+  t+=DT;
+  if(((t*10+.5)|0)%10===0){for(const c of cars){if(c.crashed)continue;actN++;act[Math.min(27,Math.floor(c.v/MPH/2))]++}}
+  while(t>=nextArr){queue++;nextArr+=expo(P.flow/3600)}
+  // spawn at entrance if there is room
+  if(queue>0){
+    const last=cars[cars.length-1];
+    const v0=Math.max(8,P.mean+P.sd*gauss())*MPH;
+    const vs=last?Math.min(v0,last.v):v0;
+    const need=CL+8+vs*P.headway;
+    if(!last||last.x-CL>=need-CL+CL){ // rear of leader far enough from entrance
+      if(!last||(last.x-CL)>=need){
+        cars.push({id:nid++,x:CL,v:vs,v0,t0:t,xs:CL,occ:P.ppc});queue--;entered++;gen.push(v0/MPH);
+      }
+    }
+  }
+  // crash: starts at random from the crash rate, blocks the lane until cleared
+  if(crash){
+    if(t>=crash.clearAt){extraFt+=Math.max(0,crash.car.x-crash.car.xs);cars.splice(cars.indexOf(crash.car),1);crash=null}
+  }else if(P.crash>0&&cars.length){
+    let sv=0;for(const c of cars)sv+=c.v;
+    if(Math.random()<P.crash*(sv*DT/5280)/1e6)startCrash();
+  }
+  tryMerge();
+  // IDM car following
+  const a=5,b=9,T=P.headway,s0=8,acc=new Array(cars.length);
+  for(let i=0;i<cars.length;i++){
+    const c=cars[i],l=cars[i-1];
+    if(c.crashed){acc[i]=0;continue}
+    let s=1e9,dv=0;
+    if(l){s=Math.max(0.5,l.x-CL-c.x);dv=c.v-l.v}
+    const fl=lane[0];
+    if(fl&&!c.gaveWay){const E=Math.min(P.rampmi*5280+P.rlen,FT-20);if(fl.x>E-250&&fl.x>c.x){const sf=Math.max(0.5,fl.x-CL-c.x);if(sf<s){s=sf;dv=c.v-fl.v}}}
+    const sStar=s0+Math.max(0,c.v*T+c.v*dv/(2*Math.sqrt(a*b)));
+    acc[i]=Math.max(-P.brake,a*(1-Math.pow(c.v/c.v0,4)-Math.pow(sStar/s,2)));
+  }
+  for(let i=0;i<cars.length;i++){
+    const c=cars[i];
+    if(c.crashed){c.v=0;continue}
+    c.v=Math.max(0,c.v+acc[i]*DT);
+    c.x+=c.v*DT;
+  }
+  while(cars.length&&cars[0].x-CL>FT){
+    const c=cars.shift();exited++;people+=c.occ;const dist=FT+CL-c.xs;exitFt+=dist;tripD+=dist;exits.push(t);tripSum+=t-c.t0;tripN++;
+  }
+  while(exits.length&&exits[0]<t-300)exits.shift();
+}
+
+// ---------- drawing ----------
+const road=$('road'),rc=road.getContext('2d'),hist=$('hist'),hc=hist.getContext('2d');
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fit(cv,h){const d=window.devicePixelRatio||1,w=cv.parentElement.clientWidth-20;cv.width=w*d;cv.height=h*d;cv.style.height=h+'px';cv.getContext('2d').setTransform(d,0,0,d,0,0);return w}
+let W=0,HW=0;
+function resize(){W=fit(road,380);HW=fit(hist,200)}
+const LANE=34,GAP=60;
+function drawRoad(){
+  const ctx=rc,pad=24,len=W-pad*2,k=len/ROWFT;
+  ctx.clearRect(0,0,W,400);
+  ctx.font='600 12px Barlow,sans-serif';
+  for(let r=0;r<ROWS;r++){
+    const y=r*(LANE+GAP)+6;
+    ctx.fillStyle=css('--road');ctx.fillRect(pad,y,len,LANE);
+    ctx.fillStyle='#c9cdca';ctx.fillText((r/4).toFixed(3).replace(/0+$/,'').replace(/\.$/,'')+' mi',pad+4,y+LANE/2+4);
+  }
+  ctx.fillStyle=css('--muted');ctx.textAlign='right';ctx.fillText('exit at 1 mi',pad+len,ROWS*(LANE+GAP)-6);ctx.textAlign='left';
+  {
+    const M=P.rampmi*5280,r=Math.min(ROWS-1,Math.floor(M/ROWFT)),x=pad+(M-r*ROWFT)*k,yb=r*(LANE+GAP)+6+LANE,bx=Math.max(40,x-52),cy=yb+36,E=Math.min(M+P.rlen,FT-20);
+    ctx.save();ctx.beginPath();ctx.rect(0,yb,W,GAP);ctx.clip();
+    ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(bx,cy);ctx.lineTo(x+4,yb+14);
+    ctx.strokeStyle=css('--sign');ctx.lineWidth=26;ctx.stroke();
+    ctx.strokeStyle=css('--road');ctx.lineWidth=22;ctx.stroke();
+    ctx.restore();
+    for(let r2=0;r2<ROWS;r2++){const a=Math.max(M,r2*ROWFT),e=Math.min(E,(r2+1)*ROWFT);if(e>a){const yy=r2*(LANE+GAP)+6+LANE,xa=pad+(a-r2*ROWFT)*k,w=(e-a)*k;ctx.fillStyle=css('--sign');ctx.fillRect(xa-1,yy,w+2,25);ctx.fillStyle=css('--road');ctx.fillRect(xa,yy,w,22);if(E<=(r2+1)*ROWFT){ctx.fillStyle=css('--mark');ctx.fillRect(xa+w-3,yy,3,22)}}}
+    const shown=Math.min(rampQ.length,Math.max(0,Math.floor((bx-2)/22)));
+    for(let i=0;i<shown;i++){const q=rampQ[i],hue=5+Math.min(1,Math.max(0,(q.v0/MPH-5)/45))*195;ctx.fillStyle=`hsl(${hue},80%,52%)`;ctx.fillRect(bx-20-i*22,cy-7,18,14)}
+    for(const c of lane){const eo=c.ent>0?c.ent*c.ent*(3-2*c.ent):0,hue=5+Math.min(1,Math.max(0,(c.v/MPH-5)/45))*195;ctx.fillStyle=`hsl(${hue},80%,52%)`;for(let r2=0;r2<ROWS;r2++){const a=Math.max(c.x-CL,r2*ROWFT),e=Math.min(c.x,(r2+1)*ROWFT);if(e>a){const yy=r2*(LANE+GAP)+6+LANE+11;ctx.fillRect(pad+(a-r2*ROWFT)*k-eo*(x-bx),yy-7+eo*25,(e-a)*k-1,14)}}}
+    if(rampQ.length&&shown>0){
+      const h=rampQ[0],el=h.hs===undefined?0:Math.min(P.meter,t-h.hs),fr=P.meter>0?el/P.meter:1,x0=Math.max(2,bx-100);
+      ctx.fillStyle=css('--line');ctx.fillRect(x0,yb+50,bx-20-x0,6);
+      ctx.fillStyle=css('--mark');ctx.fillRect(x0,yb+50,(bx-20-x0)*fr,6);
+      ctx.fillStyle=fr>=1?'#2fbf71':'#e5252a';ctx.beginPath();ctx.arc(bx+3,cy,4,0,6.283);ctx.fill();
+    }
+    ctx.fillStyle=css('--muted');ctx.font='600 12px Barlow,sans-serif';
+    ctx.fillText('On-ramp'+(rampQ.length?' · '+rampQ.length+' waiting':'')+' · meter '+P.meter.toFixed(1)+' s',Math.max(x+12,pad+56),yb+GAP-6);
+  }
+  const cw=CL*k,EE=Math.min(P.rampmi*5280+P.rlen,FT-20);
+  for(const c of cars){
+    const hue=5+Math.min(1,Math.max(0,(c.v/MPH-5)/45))*195;
+    ctx.fillStyle=`hsl(${hue},80%,52%)`;
+    const r0=c.x-CL,f=c.x;
+    for(let r=0;r<ROWS;r++){
+      const a=Math.max(r0,r*ROWFT),e=Math.min(f,(r+1)*ROWFT);
+      if(e>a){const y=r*(LANE+GAP)+6+LANE/2+(c.lat>0?c.lat*c.lat*(3-2*c.lat)*(LANE/2+11)*Math.max(0,Math.min(1,1-(c.x-EE)/40)):0);ctx.fillRect(pad+(a-r*ROWFT)*k,y-7,(e-a)*k-(cw>6?1:0),14)}
+    }
+  }
+  if(crash){
+    const c=crash.car,r=Math.min(ROWS-1,Math.floor((c.x-1)/ROWFT)),y=r*(LANE+GAP)+6+LANE/2,x=pad+(c.x-r*ROWFT)*k;
+    ctx.fillStyle='#fff';ctx.strokeStyle='#e5252a';ctx.lineWidth=2;
+    ctx.fillRect(x-cw-1,y-7,cw+2,14);ctx.strokeRect(x-cw-1,y-7,cw+2,14);
+    ctx.fillStyle='#e5252a';ctx.font='700 12px Barlow,sans-serif';ctx.textAlign='center';ctx.fillText('CRASH',x-cw/2,y-10);ctx.textAlign='left';
+  }
+}
+function drawHist(){
+  const ctx=hc,L=34,B=24,Tp=8,w=HW-L-8,h=200-B-Tp,lo=0,hi=56,bw=2,nb=(hi-lo)/bw;
+  ctx.clearRect(0,0,HW,200);
+  const bins=new Array(nb).fill(0);
+  for(const v of gen){const i=Math.floor((v-lo)/bw);if(i>=0&&i<nb)bins[i]++}
+  const n=Math.max(1,gen.length),pdf=x=>Math.exp(-0.5*Math.pow((x-P.mean)/P.sd,2))/(P.sd*Math.sqrt(2*Math.PI));
+  const an=Math.max(1,actN),ymax=Math.max(pdf(P.mean)*bw,...bins.map(b=>b/n),...act.map(b=>b/an))*1.15;
+  ctx.fillStyle=css('--sign');
+  bins.forEach((b,i)=>{const bh=b/n/ymax*h;ctx.globalAlpha=.75;ctx.fillRect(L+i*w/nb+1,Tp+h-bh,w/nb-2,bh)});
+  ctx.globalAlpha=1;
+  ctx.strokeStyle=css('--mark');ctx.lineWidth=2;ctx.beginPath();
+  for(let x=lo;x<=hi;x+=.5){const px=L+(x-lo)/(hi-lo)*w,py=Tp+h-pdf(x)*bw/ymax*h;x===lo?ctx.moveTo(px,py):ctx.lineTo(px,py)}
+  ctx.stroke();
+  if(actN){
+    ctx.strokeStyle='#3b8eea';ctx.fillStyle='#3b8eea';ctx.lineWidth=2.5;ctx.beginPath();
+    act.forEach((b,i)=>{const px=L+(i+.5)*w/nb,py=Tp+h-b/an/ymax*h;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});
+    ctx.stroke();
+    act.forEach((b,i)=>{ctx.beginPath();ctx.arc(L+(i+.5)*w/nb,Tp+h-b/an/ymax*h,2.5,0,6.283);ctx.fill()});
+  }
+  ctx.fillStyle=css('--muted');ctx.font='12px Barlow,sans-serif';ctx.textAlign='center';
+  for(let x=lo;x<=hi;x+=10)ctx.fillText(x+' mph',L+(x-lo)/(hi-lo)*w,200-6);
+  ctx.textAlign='left';ctx.strokeStyle=css('--line');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(L,Tp+h);ctx.lineTo(L+w,Tp+h);ctx.stroke();
+}
+function stats(){
+  const hh=Math.floor(t/3600),m=Math.floor(t%3600/60),s=Math.floor(t%60);
+  $('sClock').textContent=hh+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  $('sOn').textContent=cars.length;$('sQ').textContent=queue;
+  $('sIO').textContent=entered+' / '+exited;
+  $('sPP').textContent=Math.round(people).toLocaleString();
+  $('sV').textContent=cars.length?(cars.reduce((a,c)=>a+c.v,0)/cars.length/MPH).toFixed(1)+' mph':'–';
+  $('sD').textContent=(cars.length*5280/FT).toFixed(0)+' cars/mi';
+  $('sF').textContent=t>60?Math.round(exits.length*3600/Math.min(300,t))+' /hr':'–';
+  const useM=t>300,fl=useM?exits.length*12:P.flow+P.ramp;
+  $('sAL').textContent=useM?'Projected AADT (measured × 24)':'Projected AADT (input × 24)';
+  $('sA').textContent=Math.round(fl*24).toLocaleString();
+  const vmt=(exitFt+extraFt+cars.reduce((a,c)=>a+Math.max(0,c.x-c.xs),0)+lane.reduce((a,c)=>a+Math.max(0,c.x-c.xs),0))/5280;
+  $('sVM').textContent=vmt.toFixed(1);
+  const avgMi=exited?exitFt/exited/5280:FT/5280;
+  $('sVD').textContent=Math.round(fl*24*avgMi).toLocaleString();
+  $('sCr').textContent=nCrash;
+  $('sRQ').textContent=rampQ.length;$('sLN').textContent=lane.length;$('sRM').textContent=merged;
+  $('sRW').textContent=merged?(waitSum/merged).toFixed(1)+' s':'–';
+  if(crash){const r=Math.max(0,crash.clearAt-t);$('sCS').textContent='Blocked, '+Math.floor(r/3600)+'h '+String(Math.floor(r%3600/60)).padStart(2,'0')+'m left'}else $('sCS').textContent='Clear';
+  $('sCY').textContent=(fl*24*365*avgMi*P.crash/1e6).toFixed(1);
+  $('sT').textContent=tripN?(tripSum/tripN).toFixed(0)+' s ('+(tripD/tripSum/MPH).toFixed(1)+' mph)':'–';
+}
+
+// ---------- loop ----------
+let last=performance.now(),acc=0;
+function frame(now){
+  const dt=Math.min(0.1,(now-last)/1000);last=now;
+  if(P.running){acc+=dt*P.speedup*15;while(acc>=DT){step();acc-=DT}}
+  
+  
+  drawRoad();drawHist();stats();
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+$('play').onclick=()=>{P.running=!P.running;$('play').textContent=P.running?'Pause':'Play'};
+$('reset').onclick=reset;
+$('crashnow').onclick=startCrash;
+$('speedup').onchange=e=>P.speedup=+e.target.value;
+[['flow','flowv'],['mean','meanv'],['sd','sdv'],['headway','hwv'],['crash','crv'],['clear','clv'],['ppc','ppv'],['ramp','rfv'],['rampmi','rmv'],['rlen','rlv'],['brake','mbv'],['meter','mtv']].forEach(([k,o])=>{
+  $(k).oninput=e=>{P[k]=+e.target.value;$(o).textContent=k==='rampmi'?(+e.target.value).toFixed(2):(k==='headway'||k==='crash'||k==='clear'||k==='ppc'||k==='meter')?(+e.target.value).toFixed(1):e.target.value;if(k==='mean'||k==='sd'){gen=[];act.fill(0);actN=0}
+    if(k==='rampmi'||k==='rlen'){lane.slice().reverse().forEach(c=>rampQ.unshift({t:c.ta,v0:c.v0}));lane=[]}}
+});
+window.addEventListener('resize',resize);
+reset();resize();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
