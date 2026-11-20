@@ -1,0 +1,16 @@
+,value
+"H1 plateau veh/h at q_A 3,600 / 4,400","[3291.0, 3288.0]"
+H1 plateau people/h,"[4936.0, 4932.0]"
+H1 plateau share of two-lane capacity %,"[88.2, 88.2]"
+H1 delta by ramp step,"{0: nan, 300: 0.59, 600: 2.13, 900: 8.17, 1200: -24.0}"
+H2 T=0.8 people change %,6.2
+H2 T=0.8 TET* ratio,11.9
+H2 T=1.5 people change %,-13.8
+H2 T=2.0 people change %,-25.4
+H6 b_safe 6 hard-braking change %,-59.9
+H6 b_safe 6 people change %,0.3
+H6 geometry people range %,"[np.float64(0.6), np.float64(0.5), np.float64(-0.2), np.float64(0.0), np.float64(-0.4)]"
+lane changes off people change %,-9.0
+lane changes off TET* change %,-89.8
+H4 best gain % by q_A,"[[2800.0, 8.0, 7.7], [3200.0, 20.0, 11.5]]"
+H7 change % 0.25 h / 0.5 h,"[np.float64(-0.1), np.float64(-11.5)]"

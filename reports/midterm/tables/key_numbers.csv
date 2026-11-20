@@ -1,0 +1,21 @@
+,0
+"IDM capacity, code values, T=1.0 (veh/h/lane)",1865
+"IDM capacity, code values, T=1.5 (veh/h/lane)",1447
+H1 predicted q_B* (veh/h),665
+H2 predicted q_B* (veh/h),247
+H1 unserved % by q_B,"{300: 0.5, 450: 1.2, 600: 4.9, 750: 7.5, 900: 12.0, 1200: 19.2}"
+H2 unserved % by q_B,"{0: 0.2, 150: 1.9, 300: 3.4, 450: 9.9, 600: 16.7, 900: 24.1}"
+"Max flow at D, T=1.0 (veh/h)",2912
+"Max flow at D, T=1.5 (veh/h)",2608
+Wave speeds (km/h),"[-18.3, -19.1, -18.3, -19.1, -18.3, -19.1]"
+"Pulse ratio (median by flow), code","{1200: 0.8, 2400: 0.65, 3200: 0.87}"
+"Pulse ratio (median by flow), Lecture 04 values","{1200: 0.04, 2400: 0.87, 3200: 0.87}"
+M/D/1 error % by row,"[0.2, 5.6, 17.8]"
+H5 flow at D by v0,"{35: 3127.0, 55: 3366.0, 75: 3476.0}"
+H5 gain % measured,"{35: 0.0, 55: 7.6, 75: 11.2}"
+H5 gain % theory,"{35: 0.0, 55: 16.7, 75: 27.0}"
+H5 trip speed mph,"{35: 14.8, 55: 20.7, 75: 22.9}"
+Incident: discharge c_R (veh/h),2175
+Incident: D/D/1 queue (veh),131
+Incident: simulated deficit (veh),159
+Incident: capacity drop %,7.5

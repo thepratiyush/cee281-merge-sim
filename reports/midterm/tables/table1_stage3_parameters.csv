@@ -1,0 +1,28 @@
+Symbol,Meaning,Unit (SI),Value (SI),As written in code,Lecture range,Source
+v0,mean desired speed,m/s,13.41,30 mph (slider 'mean'),–,Lecture 04 Table 11.2
+σ_v0,spread of desired speed,m/s,2.24,5 mph (slider 'sd'),–,Lecture 05B
+T,desired time gap,s,1,1.0 s (slider 'headway'),1–1.6,"Lecture 04 Table 11.2, Fig. 11.2"
+s0,standstill gap,m,2.44,8 ft (const S0),1–3,Lecture 04 Table 11.2
+a,maximum acceleration,m/s²,1.52,5 ft/s² (const IA),0.73–1,Lecture 04 Table 11.2
+b,comfortable deceleration,m/s²,2.74,9 ft/s² (const IB),1.5–1.67,Lecture 04 Table 11.2
+δ,acceleration exponent,–,4,4 (in idm()),4–4,Lecture 04 Table 11.2
+l,vehicle length,m,4.57,15 ft (const CL),–,Lecture 04 Table 11.2 (car)
+occ,people per car,persons,1.5,1.5 (slider 'ppc'),–,code
+b_safe,max braking imposed on new follower (MOBIL),m/s²,3.96,13 ft/s² (slider 'bsafe'),–,Lecture 04 Eq. 14.4
+p,MOBIL politeness,–,0.2,0.2 (const POL),–,Kesting et al. (2007)
+Δa_th,MOBIL lane-change threshold,m/s²,0.1,0.33 ft/s² (const ATHR),–,Kesting et al. (2007)
+q_A,main road demand (both lanes),veh/h,"2,000","2,000 veh/h (slider 'flow')",–,code
+q_B,ramp demand,veh/h,200,200 veh/h (slider 'ramp'),–,code
+μ,ramp meter service rate,veh/h,"1,800",2.0 s/car (slider 'meter'),–,code
+n_max,ramp storage,veh,20,20 (slider 'nmax'),–,code
+L,main road length,m,"4,000","4,000 m",–,code
+x_M,merge location,m,"2,500","2,500 m (slider 'rampm')",–,code
+L_B,ramp length,m,500,500 m (slider 'rampL'),–,code
+L_acc,acceleration lane length,m,121.92,400 ft (slider 'rlen'),–,code
+x_A,detector A position,m,"1,500","1,500 m (const XA)",–,code
+x_D,detector D position,m,"3,300","3,300 m (const XD)",–,code
+Δt,time step (ballistic update),s,0.1,0.1 s (const DT),–,Lecture 04 Eq. 10.9–10.10
+–,detector aggregation interval,s,30,30 s (const DINT),–,code
+–,warm-up discarded,s,600,600 s (breakdown detection),–,code
+R,crash rate,per 10⁶ veh-mi,1,1.0 (slider 'crash'),–,Lecture 08A crash rates
+t_inc,crash clearance time,h,1,1.0 h (slider 'clear'),–,code

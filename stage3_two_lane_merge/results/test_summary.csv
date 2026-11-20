@@ -4,7 +4,7 @@ T1 idm() = lecture IDM equation,PASS,max error 1.8e-12 ft/s²
 T2a HTML q–k curve = equation,PASS,"1,865 vs 1,865 veh/h/lane (0.00%)"
 T2b proposal capacity table reproduced,PASS,max difference 0.26%
 T2c capacity at code values,FLAG,"1,865 veh/h/lane at the code's 30 mph mean, below the proposal's 35–75 mph range (1,990–2,520)"
-"T3 conservation, no negative gaps, lane order",PASS,"6 scenarios × 36,000 steps; min gap 3.89 ft"
+"T3 conservation, no negative gaps, lane order",FLAG,"7 scenarios × 36,000 steps; min gap -12.29 ft — overlaps: high speed (75 mph mean) (a main-road car brakes at the 20 ft/s² cap for a ramp car stopped at the lane end; its fast follower cannot stop)"
 T4a detector flow = input demand,PASS,|z| ≤ 1.77
 T4b time-mean ≥ space-mean speed,PASS,every 30 s interval at A and D
 T4c free-flow speed,INFO,space-mean 27.8 mph vs mean desired 30 mph (7% lower: platoons behind slower drivers)

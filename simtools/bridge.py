@@ -71,19 +71,20 @@ def node_path() -> str:
 
 def run_stage3(params: dict | None = None, consts: dict | None = None, duration_s: float = 3600, seed: int = 1,
                record_traj: bool = False, traj_every_s: float = 5, traj_from_s: float = 0,
-               pulse: dict | None = None, idm_samples: list | None = None, html: str | Path | None = None,
+               pulse: dict | None = None, crash_at: dict | None = None, idm_samples: list | None = None, html: str | Path | None = None,
                timeout_s: float = 600) -> dict:
     """Run the Stage 3 HTML model headless and return its results as a dict.
 
     params: slider values, e.g. {"flow": 2400, "ramp": 600, "meter": 4.5}. See SLIDERS.
     consts: hard-coded constants to patch, e.g. {"IA": 3.28, "DT": 0.05}. See CONSTS.
     pulse:  braking pulse, e.g. {"t_s": 900, "x_m": 1800, "decel_mps2": 3, "dur_s": 3, "lane": 0}.
+    crash_at: a crash at a chosen time and place, e.g. {"t_s": 900, "x_m": 2000, "lane": 0}; it lasts params["clear"] hours.
     """
     cfg = {
         "html": str(html or STAGE3_HTML), "duration_s": duration_s, "seed": seed,
         "params": params or {}, "consts": consts or {},
         "record_traj": record_traj, "traj_every_s": traj_every_s, "traj_from_s": traj_from_s,
-        "pulse": pulse, "idm_samples": idm_samples,
+        "pulse": pulse, "crash_at": crash_at, "idm_samples": idm_samples,
     }
     p = subprocess.run([node_path(), str(RUNNER)], input=json.dumps(cfg), capture_output=True, text=True, timeout=timeout_s)
     if p.returncode != 0:

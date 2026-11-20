@@ -1,0 +1,17 @@
+Parameter,Stage 1 (one-lane road),Stage 2 (zipper merge),Stage 3 (for comparison)
+Road length,"1 mi (1,609 m), 1 lane","1 mi (1,609 m), 1 lane","4,000 m, 2 lanes"
+Main-road demand (default; slider range),"1,000 veh/h; 200–1,800","1,000 veh/h; 200–1,800","2,000 veh/h; both lanes"
+Desired speed v0,"N(30, 5) mph, floor 8 mph","N(30, 5) mph, floor 8 mph",same
+"IDM a, b, s0, δ, l","5 ft/s², 9 ft/s², 8 ft, 4, 15 ft",same,same
+Time gap T,1.0 s (slider 0.5–3),1.0 s,1.0 s
+Braking cap,none,20 ft/s²,20 ft/s²
+Passing / lane changes,none,none,"MOBIL, p = 0.2, b_safe = 4 m/s²"
+Ramp,–,"1 lane, joins at 0.4 mi","500 m, joins at 2,500 m"
+Ramp demand,–,"200 veh/h (0–1,500)",200 veh/h
+Acceleration lane,–,400 ft,400 ft (122 m)
+Meter,–,"2 s/car, release when gap ≥ 8 ft + 1.2 v","2 s/car, release from a stop"
+Ramp storage,–,unlimited,n_max = 20
+Merge rule,–,zipper: 1 ramp car per main-road car; hold to end below 25 mph,"same, into the right lane"
+Crash model,"R = 1 per 10⁶ veh-mi, t_inc = 1 h",same,"same, blocks one lane"
+Detectors,none (exit counts only),none,"A, B, C, D every 30 s"
+Time step,0.1 s,0.1 s,0.1 s

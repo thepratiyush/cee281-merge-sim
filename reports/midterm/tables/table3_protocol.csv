@@ -1,0 +1,13 @@
+Experiment,Settings,Run length,Seeds,Figure
+H1 threshold (T = 1.0 s) and H2 threshold (T = 1.5 s),"q_A 2,400; q_B 0–1,200; meter 2 s",1 h,3,Fig 3
+H1 plateau: demand sweep,"q_A 1,200–4,400; q_B 200",1 h,3,Fig 4
+H1 displacement: ramp sweep,"q_A 3,200; q_B 0–1,200",1 h,3,Fig 5
+"H2 time gap, H6 b_safe / geometry, lane changes off","q_A 2,800; q_B 600; one factor at a time: T 0.8–2.0 s, b_safe 6–20 ft/s², L_acc 200–1,000 ft, x_M 2,000–3,000 m",1 h,3,"Figs 6, 10, 17"
+H3 braking pulse,"q_A 1,200/2,400/3,200; no ramp; −3 m/s² for 3 s at x = 1,800 m; paired with/without",18 min,3 × 2,Fig 7
+H4 meter sweep,"q_A 2,800/3,200; q_B 900; meter 2–20 s",1 h,3,Fig 8
+H5 speed-limit sweep,"q_A 3,600; q_B 600; mean v0 35/55/75 mph",1 h,3,Fig 9
+H6 grid,"q_A 2,800; q_B 600; L_acc 200–1,000 ft × meter 2–6 s",1 h,3,"Figs 11, 17"
+H7 crash clearance,"q_A 2,000; q_B 300; one lane blocked from 30 min for 0 / 0.25 / 0.5 h",1 h,4,Fig 12
+H7 queue vs. D/D/1,"q_A 2,400; q_B 300; right lane blocked at x = 2,000 m, 20–35 min; paired with no crash",1 h,3 × 2,Fig 13
+Ramp queue verification,q_A 800; q_B 400/600; meter 4.0/5.0 s,2 h,3,Fig 14
+"Merge bottleneck, q–k, wave speed","q_A 2,800; q_B 700; meter 4.5 s",1 h,3,"Figs 7a, 15, 16"
